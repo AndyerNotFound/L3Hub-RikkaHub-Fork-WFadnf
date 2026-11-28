@@ -1,16 +1,52 @@
 package me.rerere.rikkahub.ui.pages.chat
 
-import android.view.View
+import android.graphics.Rect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import me.rerere.rikkahub.ui.theme.LocalAnimationsEnabled
 import me.rerere.rikkahub.ui.theme.slideDurationMillis
 import me.rerere.rikkahub.ui.views.chat.NativeSelectMenu
 import me.rerere.rikkahub.ui.views.chat.rememberNativeChatContext
+
+/**
+ * 记住一个组件的窗口矩形，喂给 [rememberNativeSelectMenu] 当容器变换的起点。
+ *
+ * ```kotlin
+ * val anchor = rememberSelectMenuAnchor()
+ * Box(Modifier.then(anchor.modifier).clickable { expanded = true }) { ... }
+ * ```
+ *
+ * 为什么不直接用 `LocalView.current`：那是整个 Compose 宿主的 View，矩形是全屏的，
+ * 容器变换会从整块屏幕缩到菜单 —— 不是「按钮长成菜单」。
+ */
+internal class SelectMenuAnchor {
+    private val bounds = mutableStateOf<Rect?>(null)
+
+    val modifier: Modifier = Modifier.onGloballyPositioned { coordinates ->
+        val rect = coordinates.boundsInWindow()
+        bounds.value = Rect(
+            rect.left.toInt(),
+            rect.top.toInt(),
+            rect.right.toInt(),
+            rect.bottom.toInt(),
+        )
+    }
+
+    internal val value: State<Rect?> get() = bounds
+}
+
+@Composable
+internal fun rememberSelectMenuAnchor(): SelectMenuAnchor {
+    return remember { SelectMenuAnchor() }
+}
 
 /**
  * 公用选择菜单的 Compose 入口。
@@ -28,11 +64,14 @@ import me.rerere.rikkahub.ui.views.chat.rememberNativeChatContext
  *
  * ```kotlin
  * var expanded by remember { mutableStateOf(false) }
- * val anchor = LocalView.current
+ * val anchor = rememberSelectMenuAnchor()
+ *
+ * Box(Modifier.then(anchor.modifier).clickable { expanded = true }) { ... }
+ *
  * rememberNativeSelectMenu(
  *     expanded = expanded,
  *     onDismiss = { expanded = false },
- *     anchorView = anchor,
+ *     anchorBounds = anchor.value.value,
  * ) {
  *     addHeader("会话文件夹")
  *     addItem("未归类", null, selected = folderId == null) { onSelect(null) }
@@ -41,22 +80,26 @@ import me.rerere.rikkahub.ui.views.chat.rememberNativeChatContext
  * }
  * ```
  *
+ * ## 内容 lambda 里不能调 Composable
+ *
+ * 它在 `LaunchedEffect` 里执行，那里没有 Composition。`stringResource()` 之类
+ * 必须在外面读好再传进来，否则崩。
+ *
  * @param expanded 显隐。true 展开，false 收起
  * @param onDismiss 菜单自己关掉时回调（点外面、按返回键、点中某项之后）
- * @param anchorView 容器变换的起点 View —— 从它的屏幕矩形长出来。不传就用当前 Compose 视图
- * @param content 往菜单里加项，只在展开时求值一次
+ * @param anchorBounds 容器变换的起点矩形（窗口坐标）。为 null 时退化成菜单原地淡入
+ * @param content 往菜单里加项
  */
 @Composable
 internal fun rememberNativeSelectMenu(
     expanded: Boolean,
     onDismiss: () -> Unit,
-    anchorView: View? = null,
+    anchorBounds: Rect? = null,
     content: NativeSelectMenu.() -> Unit,
 ): NativeSelectMenu {
     val context = rememberNativeChatContext()
     val animationsEnabled = LocalAnimationsEnabled.current
     val duration = slideDurationMillis()
-    val fallbackAnchor = LocalView.current
     val latestDismiss = rememberUpdatedState(onDismiss)
     val latestContent = rememberUpdatedState(content)
 
@@ -74,13 +117,13 @@ internal fun rememberNativeSelectMenu(
 
     // 展开时重建内容再打开。放在 LaunchedEffect 里而不是 remember 里：
     // remember 的 lambda 在组合阶段执行，而 show() 会动窗口，属于副作用。
-    LaunchedEffect(menu, expanded, anchorView, fallbackAnchor, animationsEnabled, duration) {
+    LaunchedEffect(menu, expanded, anchorBounds, animationsEnabled, duration) {
         menu.setAnimationsEnabled(animationsEnabled)
         menu.setTransformDuration(duration)
         if (expanded) {
             menu.clearItems()
             latestContent.value.invoke(menu)
-            menu.show(anchorView ?: fallbackAnchor)
+            menu.show(anchorBounds)
         } else {
             menu.dismiss()
         }

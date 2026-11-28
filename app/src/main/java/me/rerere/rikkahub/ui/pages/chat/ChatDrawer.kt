@@ -19,8 +19,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ContainedLoadingIndicator
-import me.rerere.rikkahub.ui.style.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -74,7 +72,6 @@ import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Sorting01
 import me.rerere.hugeicons.stroke.Sparkles
-import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.hugeicons.stroke.TransactionHistory
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
@@ -1031,51 +1028,46 @@ private fun ConversationSortButton(
     onSortOrderChange: (ConversationSortOrder) -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
-    Box {
-        Surface(
-            onClick = { menuExpanded = true },
-            shape = CircleShape,
-            color = glassColor(MaterialTheme.colorScheme.surfaceContainerLow),
-        ) {
-            Tooltip(
-                tooltip = { Text(stringResource(R.string.chat_page_sort_conversations)) }
-            ) {
-                Icon(
-                    imageVector = HugeIcons.Sorting01,
-                    contentDescription = stringResource(R.string.chat_page_sort_conversations),
-                    modifier = Modifier
-                        .padding(8.dp)
-                        .size(16.dp),
-                )
+    // 容器变换的起点：这颗圆形排序按钮。菜单从它的窗口矩形长出来，
+    // 不是旁边冒出一张卡
+    val anchor = rememberSelectMenuAnchor()
+
+    // 文案在组合里读好：content lambda 在 LaunchedEffect 里跑，没有 Composition
+    val updateTimeLabel = stringResource(R.string.chat_page_sort_by_update_time)
+    val createTimeLabel = stringResource(R.string.chat_page_sort_by_create_time)
+
+    rememberNativeSelectMenu(
+        expanded = menuExpanded,
+        onDismiss = { menuExpanded = false },
+        anchorBounds = anchor.value.value,
+    ) {
+        ConversationSortOrder.entries.forEach { option ->
+            val label = when (option) {
+                ConversationSortOrder.UPDATE_TIME -> updateTimeLabel
+                ConversationSortOrder.CREATE_TIME -> createTimeLabel
+            }
+            addItem(label, null, selected = option == sortOrder) {
+                if (option != sortOrder) onSortOrderChange(option)
             }
         }
-        DropdownMenu(
-            expanded = menuExpanded,
-            onDismissRequest = { menuExpanded = false },
+    }
+
+    Surface(
+        onClick = { menuExpanded = true },
+        shape = CircleShape,
+        color = glassColor(MaterialTheme.colorScheme.surfaceContainerLow),
+        modifier = Modifier.then(anchor.modifier),
+    ) {
+        Tooltip(
+            tooltip = { Text(stringResource(R.string.chat_page_sort_conversations)) }
         ) {
-            ConversationSortOrder.entries.forEach { option ->
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            stringResource(
-                                when (option) {
-                                    ConversationSortOrder.UPDATE_TIME -> R.string.chat_page_sort_by_update_time
-                                    ConversationSortOrder.CREATE_TIME -> R.string.chat_page_sort_by_create_time
-                                }
-                            )
-                        )
-                    },
-                    trailingIcon = {
-                        if (option == sortOrder) {
-                            Icon(HugeIcons.Tick01, null, modifier = Modifier.size(18.dp))
-                        }
-                    },
-                    onClick = {
-                        menuExpanded = false
-                        if (option != sortOrder) onSortOrderChange(option)
-                    }
-                )
-            }
+            Icon(
+                imageVector = HugeIcons.Sorting01,
+                contentDescription = stringResource(R.string.chat_page_sort_conversations),
+                modifier = Modifier
+                    .padding(8.dp)
+                    .size(16.dp),
+            )
         }
     }
 }

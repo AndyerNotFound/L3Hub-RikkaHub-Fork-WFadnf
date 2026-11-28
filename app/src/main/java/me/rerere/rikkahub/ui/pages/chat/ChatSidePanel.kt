@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -60,12 +59,10 @@ import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.GitFork
-import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.advancedMaterial
 import me.rerere.rikkahub.ui.components.ui.navigationMaterial
 import me.rerere.rikkahub.ui.context.LocalSettings
-import me.rerere.rikkahub.ui.style.DropdownMenu
 import me.rerere.rikkahub.ui.theme.appButtonShadow
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberSlideSpec
@@ -237,43 +234,35 @@ private fun ChatSidePanelTabStrip(
             }
         }
 
-        Box {
-            IconButton(
-                onClick = { menuExpanded = true },
-                modifier = Modifier.size(40.dp),
-            ) {
-                Icon(
-                    imageVector = HugeIcons.Add01,
-                    contentDescription = stringResource(R.string.chat_page_side_panel_new_tab),
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-            DropdownMenu(
-                expanded = menuExpanded,
-                onDismissRequest = { menuExpanded = false },
-            ) {
-                ChatSidePane.entries.forEach { pane ->
-                    DropdownMenuItem(
-                        text = { Text(stringResource(pane.titleRes)) },
-                        onClick = {
-                            menuExpanded = false
-                            onOpen(pane)
-                        },
-                        // 已经开着的看板打勾，点了等于切过去
-                        trailingIcon = if (pane in panes) {
-                            {
-                                Icon(
-                                    imageVector = HugeIcons.Tick01,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                            }
-                        } else {
-                            null
-                        },
-                    )
+        // 容器变换的起点：这颗「新建标签页」按钮。菜单从它的窗口矩形长出来
+        val anchor = rememberSelectMenuAnchor()
+        // 文案在组合里读好：content lambda 在 LaunchedEffect 里跑，没有 Composition
+        val paneTitles = ChatSidePane.entries.map { stringResource(it.titleRes) }
+
+        rememberNativeSelectMenu(
+            expanded = menuExpanded,
+            onDismiss = { menuExpanded = false },
+            anchorBounds = anchor.value.value,
+        ) {
+            ChatSidePane.entries.forEachIndexed { index, pane ->
+                // 已经开着的看板打勾，点了等于切过去
+                addItem(paneTitles[index], null, selected = pane in panes) {
+                    onOpen(pane)
                 }
             }
+        }
+
+        IconButton(
+            onClick = { menuExpanded = true },
+            modifier = Modifier
+                .size(40.dp)
+                .then(anchor.modifier),
+        ) {
+            Icon(
+                imageVector = HugeIcons.Add01,
+                contentDescription = stringResource(R.string.chat_page_side_panel_new_tab),
+                modifier = Modifier.size(20.dp),
+            )
         }
     }
 }

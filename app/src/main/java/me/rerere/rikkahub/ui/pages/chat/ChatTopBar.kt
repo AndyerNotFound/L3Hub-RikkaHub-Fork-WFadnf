@@ -1,7 +1,7 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import androidx.compose.foundation.clickable
-import android.view.View
+import android.graphics.Rect
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -36,7 +36,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -274,9 +273,10 @@ private fun ChatModelFolderPill(
 ) {
     val folder = folders.firstOrNull { it.id == folderId }
     var menuExpanded by remember { mutableStateOf(false) }
-    // 容器变换的起点：胶囊左半边那块可点区域。菜单从它的屏幕矩形长出来，
+    // 容器变换的起点：胶囊左半边那块可点区域。菜单从它的窗口矩形长出来，
     // 所以视觉上是「这块胶囊变成了菜单」，而不是旁边冒出一张卡。
-    val anchorView = LocalView.current
+    // 用 rememberSelectMenuAnchor 而不是 LocalView.current —— 后者是整个 Compose 宿主
+    val anchor = rememberSelectMenuAnchor()
 
     ChatCapsule(
         hazeState = hazeState,
@@ -289,6 +289,7 @@ private fun ChatModelFolderPill(
             Row(
                 modifier = Modifier
                     .height(TopBarButtonSize)
+                    .then(anchor.modifier)
                     .clickable { menuExpanded = true }
                     .padding(start = 8.dp, end = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -324,7 +325,7 @@ private fun ChatModelFolderPill(
                     menuExpanded = false
                     onCreateFolder()
                 },
-                anchorView = anchorView,
+                anchorBounds = anchor.value.value,
             )
         }
 
@@ -345,7 +346,7 @@ private fun ChatModelFolderPill(
 // 胶囊里的文件夹选单：未归类排在最上面，当前归属打勾。
 //
 // 展开 / 收起走容器变换（NativeSelectMenu）：从胶囊那一小块原地长成菜单卡，
-// 不是淡入淡出。起点由 anchorView 决定，所以传的是胶囊本身。
+// 不是淡入淡出。起点是胶囊左半边那块可点区域的窗口矩形。
 @Composable
 private fun ChatFolderMenu(
     expanded: Boolean,
@@ -354,7 +355,7 @@ private fun ChatFolderMenu(
     selectedFolderId: Uuid?,
     onSelect: (Uuid?) -> Unit,
     onCreateFolder: () -> Unit,
-    anchorView: View?,
+    anchorBounds: Rect?,
 ) {
     // 文案必须在组合里读好：content lambda 在 LaunchedEffect 里执行，
     // 那里没有 Composition，直接调 stringResource 会崩
@@ -366,7 +367,7 @@ private fun ChatFolderMenu(
     rememberNativeSelectMenu(
         expanded = expanded,
         onDismiss = onDismissRequest,
-        anchorView = anchorView,
+        anchorBounds = anchorBounds,
     ) {
         addHeader(headerLabel)
         addItem(unfiledLabel, null, selected = selectedFolderId == null) {

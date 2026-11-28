@@ -60,7 +60,7 @@ import me.rerere.rikkahub.R;
  * menu.addItem("工作", folderIcon, false, () -> ...);
  * menu.addDivider();
  * menu.addItem("新建文件夹", addIcon, false, () -> ...);
- * menu.showAsDropdown(anchorView);
+ * menu.show(anchorView);
  * }</pre>
  */
 public final class NativeSelectMenu {
@@ -110,7 +110,7 @@ public final class NativeSelectMenu {
     @Nullable
     private LinearLayout itemContainer;
     @Nullable
-    private View anchorView;
+    private Rect anchorBounds;
     @Nullable
     private OnItemClickListener listener;
     private int transformDurationMillis = 300;
@@ -173,15 +173,18 @@ public final class NativeSelectMenu {
     }
 
     /**
-     * 以 {@code anchor} 为起点展开。
+     * 以 {@code anchorBounds} 为起点展开。
      *
-     * <p>起点矩形取 anchor 的屏幕坐标 —— 容器变换从它长出来，
-     * 所以视觉上就是「这个按钮变成了菜单」。
+     * <p>{@code anchorBounds} 是触发按钮的窗口矩形 —— 容器变换从它长出来，
+     * 所以视觉上是「这个按钮变成了菜单」。传 null 时退化成原地淡入。
+     *
+     * <p>为什么传矩形而不是 View：调用方在 Compose 里，拿不到「那颗按钮」的
+     * android View（它是 Compose 节点）。能拿到的是它的窗口矩形。
      */
-    public void show(@NonNull View anchor) {
+    public void show(@Nullable Rect anchorBounds) {
         if (isShowing()) return;
         if (items.isEmpty()) return;
-        anchorView = anchor;
+        this.anchorBounds = anchorBounds;
 
         View content = LayoutInflater.from(context).inflate(R.layout.l3_native_select_menu, null);
         View anchorPlaceholder = content.findViewById(R.id.l3_native_select_anchor);
@@ -189,7 +192,7 @@ public final class NativeSelectMenu {
         itemContainer = content.findViewById(R.id.l3_native_select_items);
 
         bindItems();
-        placeAnchor(anchor, anchorPlaceholder);
+        placeAnchor(anchorBounds, anchorPlaceholder);
 
         popup = new PopupWindow(
                 content,
@@ -209,9 +212,21 @@ public final class NativeSelectMenu {
         // 布局落定后再算菜单位置与容器变换：此时才知道菜单卡的实际高度
         content.post(() -> {
             if (popup == null || card == null) return;
-            positionCard(anchor);
+            positionCard(anchorBounds);
             playOpenTransform(anchorPlaceholder, card);
         });
+    }
+
+    /** 以某个 View 的屏幕矩形为起点展开。非 Compose 场景用。 */
+    public void show(@NonNull View anchor) {
+        int[] location = new int[2];
+        anchor.getLocationInWindow(location);
+        show(new Rect(
+                location[0],
+                location[1],
+                location[0] + anchor.getWidth(),
+                location[1] + anchor.getHeight()
+        ));
     }
 
     public void dismiss() {
@@ -220,16 +235,22 @@ public final class NativeSelectMenu {
 
     // region 内部
 
-    /** 把占位 View 摆到触发按钮的屏幕矩形上 —— 这就是容器变换的起点。 */
-    private void placeAnchor(@NonNull View anchor, @NonNull View placeholder) {
-        int[] location = new int[2];
-        anchor.getLocationInWindow(location);
+    /** 把占位 View 摆到触发按钮的窗口矩形上 —— 这就是容器变换的起点。 */
+    private void placeAnchor(@Nullable Rect bounds, @NonNull View placeholder) {
+        if (bounds == null) {
+            // 没有起点信息：占位收到 0 尺寸，容器变换退化成从一点淡入
+            ViewGroup.LayoutParams lp = placeholder.getLayoutParams();
+            lp.width = 0;
+            lp.height = 0;
+            placeholder.setLayoutParams(lp);
+            return;
+        }
         ViewGroup.LayoutParams lp = placeholder.getLayoutParams();
-        lp.width = anchor.getWidth();
-        lp.height = anchor.getHeight();
+        lp.width = Math.max(1, bounds.width());
+        lp.height = Math.max(1, bounds.height());
         placeholder.setLayoutParams(lp);
-        placeholder.setX(location[0]);
-        placeholder.setY(location[1]);
+        placeholder.setX(bounds.left);
+        placeholder.setY(bounds.top);
     }
 
     /**
@@ -239,7 +260,7 @@ public final class NativeSelectMenu {
      * <p>这段逻辑对应 M3 {@code DropdownMenuPositionProvider} 的行为，
      * 只是这里要同时处理占位 View 与卡片两块，所以自己算。
      */
-    private void positionCard(@NonNull View anchor) {
+    private void positionCard(@Nullable Rect anchor) {
         if (card == null) return;
         View root = (View) card.getParent();
         if (root == null) return;
@@ -248,12 +269,10 @@ public final class NativeSelectMenu {
         int minWidth = dp(MIN_WIDTH_DP);
         int maxWidth = dp(MAX_WIDTH_DP);
 
-        int[] anchorLocation = new int[2];
-        anchor.getLocationInWindow(anchorLocation);
-        int anchorLeft = anchorLocation[0];
-        int anchorTop = anchorLocation[1];
-        int anchorWidth = anchor.getWidth();
-        int anchorHeight = anchor.getHeight();
+        int anchorLeft = anchor != null ? anchor.left : 0;
+        int anchorTop = anchor != null ? anchor.top : 0;
+        int anchorWidth = anchor != null ? anchor.width() : 0;
+        int anchorHeight = anchor != null ? anchor.height() : 0;
 
         int availableWidth = root.getWidth() - margin * 2;
         int targetWidth = Math.max(minWidth, Math.min(anchorWidth, maxWidth));
@@ -331,7 +350,7 @@ public final class NativeSelectMenu {
 
     /** 收起：菜单卡缩回触发按钮。 */
     private void playCloseTransform(@NonNull Runnable afterDismiss) {
-        if (card == null || anchorView == null || !animationsEffective) {
+        if (card == null || !animationsEffective) {
             afterDismiss.run();
             return;
         }
@@ -435,7 +454,7 @@ public final class NativeSelectMenu {
         popup = null;
         card = null;
         itemContainer = null;
-        anchorView = null;
+        anchorBounds = null;
     }
 
     private int dp(int value) {
