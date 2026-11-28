@@ -74,7 +74,6 @@ import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -654,6 +653,8 @@ private fun ChatPageContent(
     val selectionState = rememberChatSelectionState()
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showCreateFolderDialog by remember { mutableStateOf(false) }
+    // 点顶栏的会话标题 → 重命名对话框
+    var showRenameTitleDialog by remember { mutableStateOf(false) }
     // 顶栏「详情」展开状态：面板挂在顶栏下面，展开时把聊天内容整体往下让
     var showDetails by rememberSaveable { mutableStateOf(false) }
     var showFilesSheet by remember { mutableStateOf(false) }
@@ -1052,6 +1053,7 @@ private fun ChatPageContent(
                                     onSelectFolder = state.vm::updateFolder,
                                     onCreateFolder = { showCreateFolderDialog = true },
                                     onToggleDetails = { toggleDetailsPane() },
+                                    onRenameConversation = { showRenameTitleDialog = true },
                                     onShowTaskTree = { openPane(ChatSidePane.TaskTree) },
                                     onShowOverview = {
                                         selectPortraitTab(0)
@@ -1462,6 +1464,15 @@ private fun ChatPageContent(
             CreateChatFolderDialog(
                 onDismissRequest = { showCreateFolderDialog = false },
                 onCreate = { state.vm.createFolder(it) },
+            )
+        }
+
+        // 顶栏标题按钮的重命名对话框：多行 Outline + 两个全宽动作
+        if (showRenameTitleDialog) {
+            RenameConversationDialog(
+                initialTitle = conversationTitle,
+                onDismissRequest = { showRenameTitleDialog = false },
+                onConfirm = { state.vm.updateTitle(it) },
             )
         }
 

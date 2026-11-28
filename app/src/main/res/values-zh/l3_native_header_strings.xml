@@ -5,8 +5,8 @@
   <!-- 工具栏无障碍描述 -->
   <string name="l3_native_cd_sidebar">展开侧边栏</string>
   <string name="l3_native_cd_folder">会话文件夹</string>
-  <string name="l3_native_cd_session">打开会话详情</string>
-  <string name="l3_native_cd_session_running">打开会话详情，正在生成</string>
+  <string name="l3_native_cd_session">重命名会话</string>
+  <string name="l3_native_cd_session_running">重命名会话，正在生成</string>
   <string name="l3_native_cd_config">会话配置</string>
   <string name="l3_native_cd_new_chat">新建对话</string>
   <string name="l3_native_cd_more">会话菜单</string>

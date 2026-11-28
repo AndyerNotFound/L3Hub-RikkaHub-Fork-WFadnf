@@ -66,7 +66,9 @@
         app:iconSize="16dp" />
 
     <!--
-      The session title is the details entry: tapping it opens the real conversation details.
+      The session title button opens the rename dialog: the title is "what this conversation is
+      called", so editing it is the most direct action. The configuration button next to it still
+      opens the real conversation details.
       It is also the only elastic member of the row (width 0dp + weight 1), so a long folder
       name or a narrow screen truncates the title instead of pushing buttons off the edge.
     -->
@@ -95,9 +97,9 @@
         app:iconSize="16dp" />
 
     <!--
-      Configuration entry. It opens the same real conversation details as the title button;
-      it is not the demo's fake preset cycle (which only rewrote its own icon and posted a
-      notice) and it never keeps local selection state.
+      Configuration entry. It opens the real conversation details; it is not the demo's fake
+      preset cycle (which only rewrote its own icon and posted a notice) and it never keeps
+      local selection state.
     -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/l3_native_btn_config"

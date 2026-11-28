@@ -90,6 +90,14 @@ public final class NativeChatHeader extends LinearLayout {
         /** Real conversation details; a layout/status configuration entry, not a preset cycle. */
         void onToggleDetails();
 
+        /**
+         * 点会话标题：打开重命名对话框。
+         *
+         * 和 [onToggleDetails] 分开：标题本身是「这条会话叫什么」，
+         * 改它是最直接的动作；详情面板另有配置入口（右边那颗按钮）。
+         */
+        void onRenameConversation();
+
         void onShowTaskTree();
 
         void onShowOverview();
@@ -320,11 +328,11 @@ public final class NativeChatHeader extends LinearLayout {
             }
         });
         folderButton.setOnClickListener(this::showFolderMenu);
-        // Title button and the configuration button open the same real details surface.
+        // 标题按钮改标题；配置按钮仍打开会话详情。
         sessionButton.setOnClickListener(v -> {
             Callbacks current = callbacks;
             if (current != null) {
-                current.onToggleDetails();
+                current.onRenameConversation();
             }
         });
         configButton.setOnClickListener(v -> {

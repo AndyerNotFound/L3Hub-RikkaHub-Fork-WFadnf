@@ -57,6 +57,7 @@ internal fun NativeChatTopBar(
     onSelectFolder: (Uuid?) -> Unit,
     onCreateFolder: () -> Unit,
     onToggleDetails: () -> Unit,
+    onRenameConversation: () -> Unit,
     onShowTaskTree: () -> Unit,
     onShowOverview: () -> Unit,
     onExport: () -> Unit,
@@ -88,6 +89,7 @@ internal fun NativeChatTopBar(
             onSelectFolder = onSelectFolder,
             onCreateFolder = onCreateFolder,
             onToggleDetails = onToggleDetails,
+            onRenameConversation = onRenameConversation,
             onShowTaskTree = onShowTaskTree,
             onShowOverview = onShowOverview,
             onExport = onExport,
@@ -123,6 +125,10 @@ internal fun NativeChatTopBar(
 
             override fun onToggleDetails() {
                 latestHandler.value.onToggleDetails()
+            }
+
+            override fun onRenameConversation() {
+                latestHandler.value.onRenameConversation()
             }
 
             override fun onShowTaskTree() {
@@ -184,6 +190,7 @@ private class NativeChatTopBarHandler(
     val onSelectFolder: (Uuid?) -> Unit,
     val onCreateFolder: () -> Unit,
     val onToggleDetails: () -> Unit,
+    val onRenameConversation: () -> Unit,
     val onShowTaskTree: () -> Unit,
     val onShowOverview: () -> Unit,
     val onExport: () -> Unit,
