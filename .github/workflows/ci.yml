@@ -1,7 +1,7 @@
 name: CI
 
 # 本机环境不执行编译，全部验证由本工作流承担。
-# 仅运行单元测试，不产出安装包；出包与发版仍由 build-apk.yml（tag 触发）负责。
+# 运行单元测试并编译设备测试，不产出安装包；出包与发版由 build-apk.yml（tag 触发）负责。
 on:
   # 打 tag 时 build-apk.yml 会在同一代码上再次执行构建，此处仅监听分支，避免重复消耗 runner
   push:
@@ -47,6 +47,19 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: false
+
+      # PopupWindow 的生命周期回归需要设备运行；先确保设备测试源码持续可编译。
+      # 单独放在单元测试前，避免已有单测失败导致这项检查没有执行。
+      - name: Compile instrumented tests
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+        run: |
+          ./gradlew \
+            :app:compileGithubDebugAndroidTestKotlin \
+            -Pkotlin.daemon.jvmargs=-Xmx3g \
+            -x :web:buildWebUi \
+            --console=plain --stacktrace
 
       - name: Run unit tests
         env:

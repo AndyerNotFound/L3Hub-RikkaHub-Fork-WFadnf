@@ -11,6 +11,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -20,11 +21,11 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.findViewTreeLifecycleOwner
-import androidx.lifecycle.findViewTreeViewModelStoreOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
-import androidx.savedstate.findViewTreeSavedStateRegistryOwner
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
+import androidx.savedstate.compose.LocalSavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import me.rerere.rikkahub.ui.theme.LocalAnimationsEnabled
 import me.rerere.rikkahub.ui.theme.slideDurationMillis
@@ -114,23 +115,28 @@ internal fun rememberNativeSelectMenu(
     anchorBounds: Rect? = null,
     icons: List<ImageVector?> = emptyList(),
     content: NativeSelectMenu.() -> Unit,
-): NativeSelectMenu {    val context = rememberNativeChatContext()
+): NativeSelectMenu {
+    val context = rememberNativeChatContext()
+    val parentComposition = rememberCompositionContext()
+    val hostView = LocalView.current
+    val hostLifecycleOwner = LocalLifecycleOwner.current
+    val hostSavedStateOwner = LocalSavedStateRegistryOwner.current
+    val hostViewModelStoreOwner = LocalViewModelStoreOwner.current
     val animationsEnabled = LocalAnimationsEnabled.current
     val duration = slideDurationMillis()
     val latestDismiss = rememberUpdatedState(onDismiss)
     val latestContent = rememberUpdatedState(content)
 
-    val menu = remember(context) { NativeSelectMenu(context) }
+    val menu = remember(
+        context, hostView, parentComposition,
+        hostLifecycleOwner, hostSavedStateOwner, hostViewModelStoreOwner,
+    ) { NativeSelectMenu(context) }
 
     // 图标走 ComposeView 嵌进 Java 的菜单行：HugeIcons 的 pathData 在 Java 侧取不到
     //
-    // 这里必须把宿主的 ViewTree 所有者搬进 Popup：Popup 有自己的 Window，
-    // 不继承 Compose 的 ViewTree。缺了 lifecycle owner，ComposeView.setContent()
-    // 会抛 "ViewTreeLifecycleOwner not found from ..."（WindowRecomposer.android.kt）。
-    val hostView = LocalView.current
-    val hostLifecycleOwner = hostView.findViewTreeLifecycleOwner()
-    val hostSavedStateOwner = hostView.findViewTreeSavedStateRegistryOwner()
-    val hostViewModelStoreOwner = hostView.findViewTreeViewModelStoreOwner()
+    // Popup 有独立的 Window，图标必须显式继承页面的组合环境及 ViewTree 所有者。
+    // 只在图标上设置 owner 仍会触发 windowRecomposer：它从 PopupDecorView 查找
+    // lifecycle，而不是从图标查找。指定父组合后就不再为弹窗创建独立的 Recomposer。
 
     DisposableEffect(menu, icons) {
         menu.setIconBinder(object : NativeSelectMenu.IconBinder {
@@ -140,9 +146,10 @@ internal fun rememberNativeSelectMenu(
                 val imageVector = icons.getOrNull(index) ?: return
                 container.addView(
                     ComposeView(container.context).apply {
-                        if (hostLifecycleOwner != null) setViewTreeLifecycleOwner(hostLifecycleOwner)
-                        if (hostSavedStateOwner != null) setViewTreeSavedStateRegistryOwner(hostSavedStateOwner)
-                        if (hostViewModelStoreOwner != null) setViewTreeViewModelStoreOwner(hostViewModelStoreOwner)
+                        setParentCompositionContext(parentComposition)
+                        setViewTreeLifecycleOwner(hostLifecycleOwner)
+                        setViewTreeSavedStateRegistryOwner(hostSavedStateOwner)
+                        setViewTreeViewModelStoreOwner(hostViewModelStoreOwner)
                         setContent {
                             Icon(
                                 imageVector = imageVector,
