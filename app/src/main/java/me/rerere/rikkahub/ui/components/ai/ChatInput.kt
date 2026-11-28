@@ -67,7 +67,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.lerp
 import dev.chrisbanes.haze.HazeState
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
@@ -202,6 +201,13 @@ fun ChatInput(
     // 默认关：横屏三栏和既有调用点仍走原来的 Compose 输入区，
     // 打开后卡片内部的文字行与按钮行由 native view 渲染，状态仍归 ChatInputState。
     useNativeComposer: Boolean = false,
+    // 全屏编辑状态：null 表示自己持有（默认），非 null 时由调用方控制。
+    // 传了 onFullscreenChange 时这里不渲染编辑器，只把状态收下——
+    // 全屏层要盖住顶栏和底栏，只能由 ChatPage 挂在 Scaffold 外面那一层。
+    externalFullscreen: Boolean? = null,
+    onFullscreenChange: ((Boolean) -> Unit)? = null,
+    // 全屏编辑里点附件 FAB 的回调；不传则 FAB 不显示
+    onFullscreenAttach: (() -> Unit)? = null,
 ) {
     val toaster = LocalToaster.current
     val containerColor = LocalUiSlots.current.inputBar
@@ -213,39 +219,23 @@ fun ChatInput(
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
-    // 输入框是否拿着输入法焦点：键盘弹起时悬浮栏要给它让出高度，
-    // 同时驱动卡片在「悬浮」与「贴键盘的 sheet」之间连续变形。
+    // 输入框是否拿着输入法焦点：键盘弹起时悬浮栏要给它让出高度。
+    // 注意它不再驱动任何尺寸/形状变化——卡片常驻悬浮，见下。
     var inputFocused by remember { mutableStateOf(false) }
 
-    // 非焦点态 = Demo 的 composer_resting：四角 uiCornerRadius（默认 24dp）+ 四周 8dp 内缩，
-    // 是一张真的浮在页面上的卡片。
-    // 焦点态 = Demo 的 composer_sheet：零内缩、顶部 28dp、底部 0，贴住键盘的一条 sheet。
+    // 输入卡常驻悬浮：四角 uiCornerRadius（默认 24dp）+ 四周 8dp 外缩 + 2dp 投影。
     //
-    // 这里刻意不用 MaterialContainerTransform，也不用 Compose 的 sharedBounds：
-    // - MaterialContainerTransform 要求两个 View 分处两个场景（两个 Fragment / Activity），
-    //   本仓库是单 Activity + Decompose + Compose，全仓零 Fragment；
-    // - sharedBounds 的公开重载要 AnimatedVisibilityScope，也就是必须包进
-    //   AnimatedContent/AnimatedVisibility，那会把输入卡变成两个实例——原生卡是
-    //   AndroidView 里的 EditText，实例一换输入法连接就断，光标、composing、选区全丢。
-    //
-    // 所以走「同一实例 + 属性插值」：圆角、内缩、底色一起连续插值，
-    // 和 Demo 那两个实例之间的 Container Transform 走同一条视觉路径。
-    val focusProgress by animateFloatAsState(
-        targetValue = if (inputFocused) 1f else 0f,
-        animationSpec = rememberSpatialSpec(),
-        label = "composerFocusProgress",
-    )
-    // 圆角：resting 四角同值 → focused 上 28 / 下 0
-    val restingRadius = settings.displaySetting.uiCornerRadius.dp
-    val focusedTopRadius = 28.dp
+    // 原来这里按焦点插值成「贴键盘的 sheet」（圆角 24→28/0、外缩 8→0、投影 2→0）。
+    // 那套动画每帧都在改 margin、圆角、投影，等于每帧重排 + 重绘一次卡片，
+    // 键盘弹出时尤其明显。改成常驻悬浮之后，尺寸和形状是常量，
+    // 只剩「整块跟着键盘上移」这一条位移，重绘范围小得多。
     val containerShape = adaptiveStyledShape(
-        topRadius = lerp(restingRadius, focusedTopRadius, focusProgress),
-        bottomRadius = lerp(restingRadius, 0.dp, focusProgress),
+        topRadius = settings.displaySetting.uiCornerRadius.dp,
+        bottomRadius = settings.displaySetting.uiCornerRadius.dp,
     )
-    // 卡片四周的外缩：resting 8dp（悬浮），focused 0（贴边成 sheet）。
-    // 顶部同样从 4dp 收到 0，这样贴键盘时卡片上边界紧挨着内容。
-    val cardInset = lerp(8.dp, 0.dp, focusProgress)
-    val cardInsetTop = lerp(4.dp, 0.dp, focusProgress)
+    // 卡片四周的外缩，常量。
+    val cardInset = 8.dp
+    val cardInsetTop = 4.dp
     // 内层圆角按固定的 8dp 内缩算，左右内边距怎么调都不会影响上下观感
     val innerShape = adaptiveShape((settings.displaySetting.uiCornerRadius - 8).coerceAtLeast(2).dp)
     var isEditingReasoning by remember { mutableStateOf(false) }
@@ -262,7 +252,14 @@ fun ChatInput(
     var showReasoningPicker by remember { mutableStateOf(false) }
     // 原生输入卡的两个入口：全屏编辑复用共享的 FullScreenEditor，快捷消息复用
     // QuickMessageMenu。面板本体都还留在 Compose，原生卡只负责把「打开」抛回来。
-    var nativeFullscreen by remember { mutableStateOf(false) }
+    //
+    // 全屏状态由外部持有（onFullscreenChange）：全屏层要盖住顶栏和底栏，
+    // 只能渲染在 ChatPage 的 Scaffold 外面，不能留在这里被底栏高度框住。
+    var nativeFullscreenLocal by remember { mutableStateOf(false) }
+    val nativeFullscreen = externalFullscreen ?: nativeFullscreenLocal
+    val setNativeFullscreen: (Boolean) -> Unit = { value ->
+        if (onFullscreenChange != null) onFullscreenChange(value) else nativeFullscreenLocal = value
+    }
     var nativeQuickMenu by remember { mutableStateOf(false) }
 
     // 单行输入框的展开状态提到卡片外面：空会话里要给卡片预留展开后的高度，
@@ -649,12 +646,11 @@ fun ChatInput(
                                     cardHeightPx = size.height
                                 }
                                 .then(revealFloatingBarModifier)
-                                // 悬浮卡片的投影（Demo 的 cardElevation=2dp）。
-                                // 焦点态收到 0：贴住键盘的 sheet 不该浮起来。
+                                // 悬浮卡片的投影（Demo 的 cardElevation=2dp），常量。
                                 // 放在 clip 之前，否则阴影会被圆角裁掉。
                                 .appButtonShadow(
                                     shape = containerShape,
-                                    elevation = lerp(2.dp, 0.dp, focusProgress),
+                                    elevation = 2.dp,
                                 )
                                 .clip(containerShape)
                                 .then(
@@ -674,14 +670,11 @@ fun ChatInput(
                                 ),
                             shape = containerShape,
                             tonalElevation = 0.dp,
-                            // 悬浮卡片要有一圈轮廓，否则和页面背景糊在一起。
-                            // 焦点态淡出：贴住键盘的 sheet 不该再有一圈浮起的描边。
+                            // 悬浮卡片要有一圈轮廓，否则和页面背景糊在一起。常量。
                             border = if (composerStyle == null || composerStyle.needsFlatOutline()) {
                                 BorderStroke(
                                     1.dp,
-                                    MaterialTheme.colorScheme.outlineVariant.copy(
-                                        alpha = 0.5f * (1f - focusProgress),
-                                    ),
+                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                                 )
                             } else {
                                 null
@@ -962,7 +955,7 @@ fun ChatInput(
                                                     onSendAsGuidance()
                                                 }
                                             },
-                                            onFullscreenClick = { nativeFullscreen = true },
+                                            onFullscreenClick = { setNativeFullscreen(true) },
                                             // 能思考的模型点开强度面板（面板首行就是模型选择），
                                             // 不能思考的直接落到模型列表
                                             onModelClick = {
@@ -1069,22 +1062,23 @@ fun ChatInput(
 
     val editingReasoning = state.editingReasoning
     if (isEditingReasoning && editingReasoning != null) {
-        FullScreenEditor(
+        FullScreenEditorDialog(
             textState = editingReasoning,
             placeholder = stringResource(R.string.chat_input_reasoning_placeholder),
-        ) {
-            isEditingReasoning = false
-        }
+            onDone = { isEditingReasoning = false },
+        )
     }
 
-    // 原生输入卡的全屏编辑走同一份 FullScreenEditor：只换了入口，编辑器不复制一份
-    if (nativeFullscreen) {
-        FullScreenEditor(
+    // 原生输入卡的全屏编辑走同一份 FullScreenEditor：只换了入口，编辑器不复制一份。
+    // 外部控制全屏状态时这里不渲染——全屏层要盖住顶栏和底栏，只能由 ChatPage 挂在
+    // Scaffold 外面那一层；留在这里会被底栏的高度和绘制顺序框住。
+    if (nativeFullscreen && onFullscreenChange == null) {
+        FullScreenEditorDialog(
             textState = state.textContent,
             placeholder = stringResource(R.string.chat_input_placeholder),
-        ) {
-            nativeFullscreen = false
-        }
+            onAttach = onFullscreenAttach,
+            onDone = { setNativeFullscreen(false) },
+        )
     }
 
     ModelListSheet(

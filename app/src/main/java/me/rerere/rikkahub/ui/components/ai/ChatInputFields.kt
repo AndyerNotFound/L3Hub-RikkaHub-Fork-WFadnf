@@ -1,5 +1,9 @@
 package me.rerere.rikkahub.ui.components.ai
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.content.MediaType
@@ -12,7 +16,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -44,15 +48,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
@@ -67,6 +75,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filter
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Attachment01
 import me.rerere.hugeicons.stroke.Fullscreen
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
@@ -85,7 +94,8 @@ import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
 import me.rerere.rikkahub.ui.theme.adaptiveShape
-import me.rerere.ui.components.AnimatedBasicAlertDialog
+import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
+import me.rerere.ui.components.AnimatedDialog
 import org.koin.compose.koinInject
 
 internal data class SingleLineExpansion(
@@ -291,12 +301,11 @@ internal fun TextInputRow(
             } else null,
         )
         if (isFullScreen) {
-            FullScreenEditor(
+            FullScreenEditorDialog(
                 textState = state.textContent,
                 placeholder = stringResource(R.string.chat_input_placeholder),
-            ) {
-                isFullScreen = false
-            }
+                onDone = { isFullScreen = false },
+            )
         }
     }
 }
@@ -617,75 +626,147 @@ internal fun QuickMessageMenu(
     }
 }
 
+/**
+ * 全屏输入编辑器的内容层：铺满、避让系统栏与输入法、顶上一个「完成」、右下角附件 FAB。
+ *
+ * 宿主由调用方挑：
+ * - 页面层（ChatPage）直接调它，挂在 Scaffold 外面，能连顶栏和底栏一起盖住；
+ * - 底栏里的入口（单行输入框、原生卡）用 [FullScreenEditorDialog]，
+ *   底栏会把内容框在它自己的高度里，必须换一个窗口才铺得开。
+ *
+ * 两处共用这一份，编辑器不复制第二份。
+ */
 @Composable
 internal fun FullScreenEditor(
     textState: TextFieldState,
     placeholder: String,
-    onDone: () -> Unit
+    onDone: () -> Unit,
+    onAttach: (() -> Unit)? = null,
+    // 对话框宿主用：那边 safeDrawing 只算系统栏，输入法要单独让一次；
+    // 页面层的 safeDrawing 已经把输入法算进去了，再让一次会多出一条空白
+    avoidIme: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
-    AnimatedBasicAlertDialog(
-        onDismissRequest = {
-            onDone()
+    // 自己吃掉返回键：全屏编辑时返回应该退出编辑，而不是退出页面。
+    // Dialog 宿主那边窗口也会接一次，两边都指向 onDone，谁先接都一样。
+    BackHandler(enabled = true) { onDone() }
+
+    // 点进来就聚焦并弹键盘。入口那边点全屏时先把原生卡的焦点收了（否则两条输入法连接
+    // 会互相踢），所以这里不主动要一次，覆盖层就是空的、键盘也不出来。
+    val focusRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    LaunchedEffect(Unit) {
+        // 等一帧：requestFocus 要求节点已经挂上，组合刚跑完时布局还没落
+        withFrameNanos { }
+        runCatching { focusRequester.requestFocus() }
+        keyboard?.show()
+    }
+
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        shape = if (LocalFullWidthComponents.current) {
+            RoundedCornerShape(0.dp)
+        } else {
+            RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         },
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false, decorFitsSystemWindows = false
-        ),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        tonalElevation = 0.dp,
     ) {
-        Column(
+        // 面板本身铺满（贴边才像一整屏），避让只加在内容上
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .safeDrawingPadding()
-                .imePadding(),
-            verticalArrangement = Arrangement.Bottom
+                .then(if (avoidIme) Modifier.imePadding() else Modifier),
         ) {
-            Surface(
+            Column(
                 modifier = Modifier
-                    .widthIn(max = 800.dp)
-                    .fillMaxHeight(0.9f),
-                // 和焦点态输入卡同一档顶部圆角：从卡片点进来时，视觉上还是「同一条 sheet
-                // 继续往上长」，不是换了一张别的面。底部贴住屏幕，不留圆角。
-                shape = if (LocalFullWidthComponents.current) {
-                    RoundedCornerShape(0.dp)
-                } else {
-                    RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-                }
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
-                Column(
-                    modifier = Modifier
-                        .padding(8.dp)
-                        .fillMaxSize(),
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                // 顶栏：只有一个「完成」，退出编辑
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
                 ) {
-                    Row {
-                        TextButton(
-                            onClick = {
-                                onDone()
-                            }) {
-                            Text(stringResource(R.string.chat_page_save))
-                        }
+                    TextButton(onClick = onDone) {
+                        Text(stringResource(R.string.chat_page_save))
                     }
-                    TextField(
-                        state = textState,
-                        modifier = Modifier
-                            .padding(bottom = 2.dp)
-                            .fillMaxSize(),
-                        shape = adaptiveShape(32.dp),
-                        placeholder = {
-                            Text(placeholder)
-                        },
-                        keyboardOptions = KeyboardOptions(
-                            capitalization = KeyboardCapitalization.Sentences,
-                        ),
-                        colors = TextFieldDefaults.colors().copy(
-                            unfocusedIndicatorColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                        ),
+                }
+                TextField(
+                    state = textState,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
+                    shape = adaptiveShape(16.dp),
+                    placeholder = { Text(placeholder) },
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                    ),
+                    colors = TextFieldDefaults.colors().copy(
+                        unfocusedIndicatorColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                    ),
+                )
+            }
+
+            // 附件 FAB：有内容才出现，用 Fade transition 显隐。
+            // 空输入时没有东西可附带，露出来只是挡视线。
+            AnimatedVisibility(
+                visible = !textState.text.isBlank() && onAttach != null,
+                enter = fadeIn(animationSpec = rememberEffectsSpec()),
+                exit = fadeOut(animationSpec = rememberEffectsSpec()),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(20.dp),
+            ) {
+                FloatingActionButton(
+                    onClick = { onAttach?.invoke() },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ) {
+                    Icon(
+                        imageVector = HugeIcons.Attachment01,
+                        contentDescription = stringResource(R.string.chat_input_add_attachment),
                     )
                 }
             }
         }
+    }
+}
+
+/**
+ * 对话框宿主：给挂在底栏里的入口用。
+ *
+ * 底栏（Scaffold 的 bottomBar）会把内容框在它自己的高度里，同窗口覆盖层在那儿
+ * 铺不开，只能借一个窗口。窗口自己带返回键处理，不用再挂 BackHandler。
+ *
+ * 用 [AnimatedDialog] 而不是 BasicAlertDialog：后者会给内容套一层
+ * `sizeIn(maxWidth = 560dp)`，整屏编辑器会被压成一条窄柱。
+ */
+@Composable
+internal fun FullScreenEditorDialog(
+    textState: TextFieldState,
+    placeholder: String,
+    onDone: () -> Unit,
+    onAttach: (() -> Unit)? = null,
+) {
+    AnimatedDialog(
+        onDismissRequest = onDone,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+        ),
+    ) {
+        FullScreenEditor(
+            textState = textState,
+            placeholder = placeholder,
+            onDone = onDone,
+            onAttach = onAttach,
+            avoidIme = true,
+        )
     }
 }

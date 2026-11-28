@@ -18,6 +18,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -111,6 +112,7 @@ import me.rerere.rikkahub.ui.components.ai.BackgroundTasksSheet
 import me.rerere.rikkahub.ui.components.ai.ChatInput
 import me.rerere.rikkahub.ui.components.ai.ChatQuotaStrip
 import me.rerere.rikkahub.ui.components.ai.ChatQuotaStripDashboard
+import me.rerere.rikkahub.ui.components.ai.FullScreenEditor
 import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.completion.WorkspaceCompletionProvider
 import me.rerere.rikkahub.ui.components.ai.rememberChatAttachmentPickerActions
@@ -665,6 +667,9 @@ private fun ChatPageContent(
     var showCreateFolderDialog by remember { mutableStateOf(false) }
     // 点顶栏的会话标题 → 重命名对话框
     var showRenameTitleDialog by remember { mutableStateOf(false) }
+    // 全屏输入：状态提在这里，因为全屏层要盖住顶栏和底栏，
+    // 只能挂在 Scaffold 外面；留在底栏里会被底栏高度和绘制顺序框住
+    var fullscreenInput by remember { mutableStateOf(false) }
     // 顶栏「详情」展开状态：面板挂在顶栏下面，展开时把聊天内容整体往下让
     var showDetails by rememberSaveable { mutableStateOf(false) }
     var showFilesSheet by remember { mutableStateOf(false) }
@@ -844,6 +849,10 @@ private fun ChatPageContent(
         // 底部渐变遮罩的浓淡：空会话里输入框被抬到页面中间，遮罩跟着淡出，
         // 免得跟着滑下来之前先在卡片周围显出一条底色带
         scrimAlpha: () -> Float = { 1f },
+        // 全屏编辑状态由页面持有：全屏层要盖住顶栏和底栏，只能挂在 Scaffold 外面
+        fullscreenActive: Boolean = false,
+        onFullscreenChange: ((Boolean) -> Unit)? = null,
+        onFullscreenAttach: (() -> Unit)? = null,
     ) {
         val voiceState by state.vm.voiceSession.state.collectAsStateWithLifecycle()
         ChatInput(
@@ -970,6 +979,10 @@ private fun ChatPageContent(
             liftedBy = liftedBy,
             applyWindowInsets = applyWindowInsets,
             deferImeInset = deferImeInset,
+            // 全屏编辑交给页面：全屏层要盖住顶栏和底栏，不能留在底栏里
+            externalFullscreen = onFullscreenChange?.let { fullscreenActive },
+            onFullscreenChange = onFullscreenChange,
+            onFullscreenAttach = onFullscreenAttach,
             // 横屏三栏去掉输入区上方的渐变遮罩
             showScrim = !state.threePane,
             // 绘制阶段才读，滑动时只重画遮罩，不带着整页重组
@@ -1153,6 +1166,16 @@ private fun ChatPageContent(
                             todos = todos,
                             deferImeInset = state.threePane && (!hasMessages || inputExitRunning),
                             scrimAlpha = { inputScrimAlpha },
+                            // 外部全屏态：输入卡自己不渲染编辑器，只把「开着」这个事实收下，
+                            // 免得卡片内部再挂一份被底栏高度框住的覆盖层
+                            fullscreenActive = fullscreenInput,
+                            onFullscreenChange = { fullscreenInput = it },
+                            // 全屏里的附件 FAB：先退出全屏再打开附件面板，
+                            // 否则面板会被全屏层盖住，点了什么也看不到
+                            onFullscreenAttach = {
+                                fullscreenInput = false
+                                openPane(ChatSidePane.Files)
+                            },
                         )
                     }
                 }
@@ -1453,6 +1476,37 @@ private fun ChatPageContent(
             )
         }
         }
+        }
+        // 全屏输入层：盖住整页（顶栏、底栏、聊天区都算在内）。
+        //
+        // 位置有两层讲究：
+        // - 不能放 Scaffold 的 content 里：那边 zIndex 是 0、bottomBar 是 3
+        //   （见 material3/Scaffold.kt），会被底栏压住，铺不满也盖不全；
+        // - 不能放中列那个 Box 里：那边横屏被 chatWidth 定宽，只盖得住聊天区。
+        // 所以挂在 Surface 这一层、排在 Row 后面，整窗都是它的画布。
+        //
+        // 只在竖屏出现：原生卡的全屏按钮是竖屏入口，横屏三栏的 Compose 输入区
+        // 走它自己那份 Dialog。
+        //
+        // 进出场：从底部升起 + 淡入。真正的容器变换要 sharedBounds，
+        // 那要求输入卡能被标成共享元素；输入卡内部是 AndroidView 的原生卡，标不了。
+        AnimatedVisibility(
+            visible = fullscreenInput && !state.threePane,
+            enter = fadeIn(animationSpec = rememberEffectsSpec<Float>()) +
+                slideInVertically(animationSpec = rememberSpatialSpec<IntOffset>()) { it / 3 },
+            exit = fadeOut(animationSpec = rememberEffectsSpec<Float>()) +
+                slideOutVertically(animationSpec = rememberSpatialSpec<IntOffset>()) { it / 3 },
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            FullScreenEditor(
+                textState = state.inputState.textContent,
+                placeholder = stringResource(R.string.chat_input_placeholder),
+                onAttach = {
+                    fullscreenInput = false
+                    openPane(ChatSidePane.Files)
+                },
+                onDone = { fullscreenInput = false },
+            )
         }
 
         // 竖屏的后台任务弹层；横屏那份由上面的右侧栏接管
