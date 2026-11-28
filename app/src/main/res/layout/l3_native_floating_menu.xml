@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  输入卡右上角的快捷菜单。
+
+  两个子 View 都在同一个 FrameLayout 里、都贴右上角：这是 MaterialContainerTransform
+  的硬性要求 —— 起点和终点必须共享父容器，动画期间两者都会被绘制到父容器的 overlay。
+  （它不需要 Fragment，也不需要 Activity 之间的共享元素。）
+
+  收起态 button 可见、panel 不可见；展开时反过来。两者尺寸不同、贴角相同，
+  所以视觉上就是「按钮往左下长成面板」。
+
+  面板宽度由内容决定（wrap_content），最多放 4 个槽位一行 —— 超过就换行，
+  但宿主限制了槽位上限 7 个，实际是一到两行。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/l3_native_floating_menu_root"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+
+  <!-- 收起态：44dp 的贴角按钮，圆角 16dp（M3 CornerLarge，与面板一致） -->
+  <FrameLayout
+      android:id="@+id/l3_native_floating_menu_button"
+      android:layout_width="44dp"
+      android:layout_height="44dp"
+      android:layout_gravity="top|end"
+      android:background="@drawable/l3_native_floating_menu_button"
+      android:clickable="true"
+      android:contentDescription="@string/floating_bar_open_menu"
+      android:focusable="true">
+
+    <FrameLayout
+        android:id="@+id/l3_native_floating_menu_button_icon"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_gravity="center" />
+  </FrameLayout>
+
+  <!--
+    展开态：面板。贴角同样是 top|end，所以两条右边界对齐、底边由布局决定 ——
+    容器变换期间两端的位置差就是「往左下推开」那一段。
+  -->
+  <LinearLayout
+      android:id="@+id/l3_native_floating_menu_panel"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_gravity="top|end"
+      android:background="@drawable/l3_native_floating_menu_panel"
+      android:orientation="horizontal"
+      android:padding="6dp"
+      android:visibility="invisible" />
+</FrameLayout>

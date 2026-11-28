@@ -100,6 +100,7 @@ import me.rerere.rikkahub.ui.theme.motionContentSize
 import me.rerere.rikkahub.ui.theme.rememberFixedSpec
 import me.rerere.rikkahub.ui.theme.rowEnter
 import me.rerere.rikkahub.ui.theme.rowExit
+import me.rerere.rikkahub.ui.pages.chat.NativeFloatingMenuHost
 import me.rerere.rikkahub.ui.theme.swapEnter
 import me.rerere.rikkahub.ui.theme.swapExit
 import me.rerere.rikkahub.utils.SoundEffectPlayer
@@ -557,12 +558,15 @@ fun ChatInput(
                         // bottomBar，摆放位置是「容器高 - 底栏高」，所以卡片离底边的距离
                         // 始终是它自己的高度加内边距，位置不动、也不会被菜单压住。
                         if (floatingBarEnabled) {
-                            ChatFloatingBar(
-                                visible = !inputFocused,
+                            // 菜单本体是 Java（NativeFloatingMenu），容器变换用
+                            // MaterialContainerTransform；图标仍由 Compose 渲染。
+                            // 键盘弹起时藏起来，把上方那一条留给内容。
+                            NativeFloatingMenuHost(
                                 items = floatingBarItems,
+                                scale = settings.displaySetting.floatingBarScale,
+                                expanded = false,
+                                onExpandedChange = {},
                                 onItemClick = onFloatingBarItemClick,
-                                displaySetting = settings.displaySetting,
-                                autoHide = floatingBarAutoHide,
                             )
                         }
                         Surface(
