@@ -40,6 +40,7 @@ import me.rerere.rikkahub.service.BackgroundShellManager
 import me.rerere.rikkahub.service.BackgroundShellTask
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.service.ChatService
+import me.rerere.rikkahub.service.InboxState
 import me.rerere.rikkahub.service.SessionActivity
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.hooks.writeStringPreference
@@ -56,6 +57,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -233,7 +235,11 @@ class ChatVM(
 
     fun clearAllErrors() = chatService.clearAllErrors()
 
-    val messageQueue = _conversationId.flatMapLatest { chatService.getInboxFlow(it) }
+    // 收件箱跟着会话走；这里落成 StateFlow，界面侧可以直接读 .value、
+    // 也能用不带 initialValue 的 collectAsStateWithLifecycle
+    val messageQueue: StateFlow<InboxState> = _conversationId
+        .flatMapLatest { chatService.getInboxFlow(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), InboxState())
 
     fun removeQueuedMessage(id: Uuid) = chatService.removeInboxItem(_conversationId.value, id)
 

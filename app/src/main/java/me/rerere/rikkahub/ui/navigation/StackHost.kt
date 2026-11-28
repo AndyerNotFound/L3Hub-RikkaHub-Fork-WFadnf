@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.navigation
 
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -145,15 +146,18 @@ internal fun isSidebarPair(newScreen: Screen, oldScreen: Screen): Boolean =
  *
  * 两段时长按 M3 的比例：淡出短（约 90ms）、淡入长（约 210ms），
  * 中间有一小段两边都不可见的空档，这样不会看成一次交叉淡入。
+ *
+ * 不用 @Composable：AnimatedContent 的 transitionSpec 是普通 lambda，
+ * 里面调不了 @Composable；这里的两条 spec 是固定时长，本来也不需要读主题。
  */
-@Composable
 internal fun fadeThroughTransition(): ContentTransform {
     // 两段的时长按 M3 的 fade through 比例：淡出 90ms、淡入 210ms，
     // 淡入用 delay 压到淡出结束之后才开始，中间留一小段两边都不可见的空档。
     // 不延迟的话两个淡变会在时间上重叠，看起来就是普通的交叉淡入。
     val outSpec = tween<Float>(durationMillis = 90, easing = LinearOutSlowInEasing)
     val inSpec = tween<Float>(durationMillis = 210, delayMillis = 90, easing = FastOutSlowInEasing)
-    return fadeOut(outSpec) togetherWith fadeIn(inSpec)
+    // togetherWith 的接收者是进场那一段，写反了类型就对不上
+    return fadeIn(inSpec) togetherWith fadeOut(outSpec)
 }
 
 /**
@@ -169,15 +173,17 @@ internal fun fadeThroughTransition(): ContentTransform {
  *
  * 位移量取 1/4 而不是整屏：整屏位移在消息这种长列表上会显得太快、
  * 像翻页而不是换内容；1/4 是 Material 里 fade through / shared axis 的常规幅度。
+ *
+ * 两条 spec 由调用侧从主题取好再传进来：`transitionSpec` 是普通 lambda，
+ * 里面调不了 @Composable，档位只能在外面读。
  */
-@Composable
-internal fun sharedAxisYTransition(): ContentTransform {
-    // 时长不在这里写死：两条 spec 都来自主题的动效档位，用户调「动画速度」时一起变。
-    val spec = rememberSpatialSpec<IntOffset>()
-    val fadeSpec = rememberEffectsSpec<Float>()
+internal fun sharedAxisYTransition(
+    spatialSpec: FiniteAnimationSpec<IntOffset>,
+    effectsSpec: FiniteAnimationSpec<Float>,
+): ContentTransform {
     return (
-        slideInVertically(spec) { height -> height / 4 } + fadeIn(fadeSpec)
+        slideInVertically(spatialSpec) { height -> height / 4 } + fadeIn(effectsSpec)
     ) togetherWith (
-        slideOutVertically(spec) { height -> -height / 4 } + fadeOut(fadeSpec)
+        slideOutVertically(spatialSpec) { height -> -height / 4 } + fadeOut(effectsSpec)
     )
 }

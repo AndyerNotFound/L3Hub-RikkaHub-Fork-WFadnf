@@ -74,6 +74,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.rememberHazeState
@@ -421,6 +422,10 @@ private fun ChatPageContent(
     // Only the portrait chrome migrates in phase one; landscape keeps its existing three panes.
     var portraitTab by rememberSaveable(state.conversationId) { mutableStateOf(0) }
     val tabStateHolder = rememberSaveableStateHolder()
+    // 切换会话时的 Shared Axis Y 两条 spec：transitionSpec 是普通 lambda，
+    // 读不了主题，档位只能在这里先取好
+    val conversationSpatialSpec = rememberSpatialSpec<IntOffset>()
+    val conversationFadeSpec = rememberEffectsSpec<Float>()
     val nativeRootView = LocalView.current
     val tabFocusManager = LocalFocusManager.current
     val tabKeyboard = LocalSoftwareKeyboardController.current
@@ -1095,13 +1100,17 @@ private fun ChatPageContent(
                 // 输入框是「这一层在不在」的开关，退场位移会看成收起而不是换掉。
                 // 竖屏才受 Tab 影响；横屏三栏没有 Tab，始终显示。
                 val inputVisible = state.threePane || portraitTab == 0
+                // 外面套一层 Column：AnimatedVisibility 只有 RowScope / ColumnScope 两个
+                // 带隐式接收者的重载，直接写在 bottomBar 的 lambda 里会因 DSL marker
+                // 把外层的 RowScope 挡掉而报「cannot be called with an implicit receiver」
+                Column(modifier = Modifier.fillMaxWidth()) {
                 AnimatedVisibility(
                     visible = inputVisible,
                     // 入场：淡入 + 从下方轻推 1/8 高度（不是整块滑入，Tab 切换不该像换页）
-                    enter = fadeIn(animationSpec = rememberEffectsSpec()) +
-                        slideInVertically(animationSpec = rememberSpatialSpec()) { it / 8 },
+                    enter = fadeIn(animationSpec = rememberEffectsSpec<Float>()) +
+                        slideInVertically(animationSpec = rememberSpatialSpec<IntOffset>()) { it / 8 },
                     // 退场只淡出：淡出时位置不动，位置一动就成了「收起来」而不是「换掉」
-                    exit = fadeOut(animationSpec = rememberEffectsSpec()),
+                    exit = fadeOut(animationSpec = rememberEffectsSpec<Float>()),
                 ) {
                 // 输入框常驻在 bottomBar：空会话时只是一层位移把它抬到英雄卡下面，
                 // 发送首条消息时它自己滑下去，列表的底部留白也始终按它的实际高度算。
@@ -1148,6 +1157,7 @@ private fun ChatPageContent(
                     }
                 }
                 }
+                }
             },
             containerColor = Color.Transparent,
         ) { innerPadding ->
@@ -1171,7 +1181,9 @@ private fun ChatPageContent(
                         // ChatPage 实例里的 id，页面不重建，所以这里能拿到前后两个值。
                         AnimatedContent(
                             targetState = state.conversationId,
-                            transitionSpec = { sharedAxisYTransition() },
+                            transitionSpec = {
+                                sharedAxisYTransition(conversationSpatialSpec, conversationFadeSpec)
+                            },
                             label = "conversationSwitch",
                         ) { animatedConversationId ->
                         if (hasMessages) {

@@ -64,12 +64,13 @@ fun rememberVoiceModeStarter(vm: ChatVM, settings: Settings): () -> Unit {
     }
 
     val start: () -> Unit = {
+        val queue = vm.messageQueue.value
         val blocked = when {
             provider == null -> context.getString(R.string.chat_page_voice_configure_asr)
             !provider.supportsServerVadVoiceMode -> context.getString(R.string.chat_page_voice_unsupported_asr)
             vm.currentChatModel.value == null -> context.getString(R.string.chat_page_voice_select_model)
             asr.state.value.isRecording -> context.getString(R.string.chat_page_voice_finish_dictation)
-            vm.messageQueue.value.paused && vm.messageQueue.value.messages.isNotEmpty() ->
+            queue.paused && queue.messages.isNotEmpty() ->
                 context.getString(R.string.chat_page_voice_resume_queue)
             vm.conversation.value.currentMessages.any { message ->
                 message.parts.any { it is UIMessagePart.Tool && it.isPending }
