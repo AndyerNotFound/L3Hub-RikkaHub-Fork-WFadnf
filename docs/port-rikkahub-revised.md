@@ -1,5 +1,11 @@
 # 从 Rikkahub Revised 移植高级外观与聊天渲染（工作笔记）
 
+> **高级外观部分已退役，以下为历史移植记录，不是当前功能规格。** 设置页已于 2026-11-26 删除；
+> 后续清理移除 `AdvancedAppearanceSetting`、材质/背景/配色接线及旧显示特效字段，V7 在升级时定向清除 DataStore 残留，
+> 旧备份恢复同样过滤，不再通过 V6 生成高级外观数据。普通主题、调色板、消息样式与助手配置保留，用户文件不删除。
+> 当前范围与迁移说明见 [`fork-features.md` 第 2.4 节](fork-features.md#24-朴素外观与已退役数据清理)。
+> 本文保留来源、许可和原设计供追溯，富文本、媒体附件及离线预览能力不因高级外观下线而撤销。
+
 源工程：`~/WorkSpace/Rikkahub-Revised`（AGPL-3.0）。
 提交 `6f33a51c25484f8ca77a9fbec560fa49a84c9b21`，树 `a9afd37f10c206adbc1d9f148cbeb266ad944199`，
 提交时间 2026-11-22 15:33:43 +0800，远端 `https://github.com/YaeNovin/Rikkahub-Revised`。

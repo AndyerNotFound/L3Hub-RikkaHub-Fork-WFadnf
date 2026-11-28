@@ -6,7 +6,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -66,9 +65,6 @@ import me.rerere.rikkahub.data.ai.formatGuardTime
 import me.rerere.rikkahub.data.ai.label
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.ui.components.ui.WaveProgressBar
-import me.rerere.rikkahub.ui.components.ui.advancedMaterial
-import me.rerere.rikkahub.ui.components.ui.overlayMaterial
-import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
 import me.rerere.rikkahub.ui.theme.adaptiveHorizontalPaddingValue
@@ -131,56 +127,20 @@ fun rememberChatQuotaStripData(provider: ProviderSetting): ChatQuotaStripData {
 }
 
 /**
- * 折叠条与展开看板共用的底色。
- *
- * 高级外观开着时底交给 [advancedMaterial]：材质（surface style）、着色、模糊半径与性能开关
- * 全部来自 [LocalSettings] 里那份 `AdvancedAppearanceSetting.overlayMaterial()`，和会话详情浮层、
- * 顶栏胶囊走同一条路径；关着时只有一道实色底 —— 旧的全特效运行时已经退役，
- * 这里不再有旧全局特效着色退路，也不会出现两层着色叠在一起。
+ * 折叠条与展开看板共用的底色：朴素外观下只有这一道实色底。
  *
  * 折叠条和看板写在同一处，是因为它们视觉上是一块：看板从折叠条下面展开，
- * 各自实现一遍材质的话，展开和收起时着色、描边会各走各的。
+ * 各自实现一遍的话，展开和收起时会各走各的。
  *
- * 效果条件不满足时（SDK 版本不够、省电、独立窗口取不到源）由 [advancedMaterial]
- * 自己降级成静态填充，这里不再另判一遍。
- *
- * [hazeState] 由调用方给：这两块都压在滚动中的消息正文上，要的是含正文的那一份源。
+ * [hazeState] 只为兼容调用点保留，朴素外观不采样背景。
  */
+@Suppress("UNUSED_PARAMETER")
 @Composable
 private fun Modifier.quotaStripSurface(
     shape: Shape,
     containerColor: Color,
     hazeState: HazeState?,
-): Modifier {
-    val material = LocalSettings.current.advancedAppearanceSetting
-        .takeIf { it.enableAdvancedAppearance }
-        ?.overlayMaterial()
-    if (material == null) {
-        // 高级外观关着：只有这一道实色底
-        return background(containerColor, shape)
-    }
-    return this
-        .advancedMaterial(
-            shape = shape,
-            base = containerColor,
-            material = material,
-            hazeState = hazeState,
-            // 底下压着没被糊过的正文，着色太淡就认不出这是一条底
-            readableFloor = .62f,
-        )
-        // 玻璃档自带渐变描边，其余档补一道平线，和实色底那条路的观感接上
-        .then(
-            if (material.needsFlatOutline()) {
-                Modifier.border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                    shape = shape,
-                )
-            } else {
-                Modifier
-            }
-        )
-}
+): Modifier = background(containerColor, shape)
 
 /**
  * 顶栏下方的限额折叠条，只有收起的那一行摘要。
@@ -300,7 +260,7 @@ fun ChatQuotaStrip(
             )
             .appButtonShadow(shape, 2.dp)
             .clip(shape)
-            // 高级外观开着时底走 overlayMaterial，关着时是一道实色底
+            // 朴素外观：这一层就是实色底，不采样背景
             .quotaStripSurface(
                 shape = shape,
                 containerColor = containerColor,
@@ -413,7 +373,7 @@ fun ChatQuotaStripDashboard(
             )
             .appButtonShadow(shape, 4.dp)
             .clip(shape)
-            // 和折叠条同一份材质：高级外观开着走 overlayMaterial，关着退回原实色
+            // 和折叠条同一份底色
             .quotaStripSurface(
                 shape = shape,
                 containerColor = containerColor,

@@ -24,17 +24,10 @@ import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 import me.rerere.ai.core.MessageRole
-import me.rerere.rikkahub.data.datastore.AdvancedAppearanceSetting
-import me.rerere.rikkahub.data.datastore.BackgroundSurfaceStyle
 import me.rerere.rikkahub.data.datastore.ChatBubbleStyleTarget
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.datastore.ChatMessageBackgroundStyle
 import me.rerere.rikkahub.data.datastore.finiteAppearanceValue
-import me.rerere.rikkahub.data.datastore.overridesFor
-import me.rerere.rikkahub.data.model.usesMaterial3Style
-import me.rerere.rikkahub.ui.components.richtext.outline
-import me.rerere.rikkahub.ui.components.richtext.richContentMaterial
-import me.rerere.rikkahub.ui.components.ui.AppearanceMaterial
 import me.rerere.rikkahub.ui.components.ui.ResolvedBubbleStyle
 import me.rerere.rikkahub.ui.components.ui.resolveMessageStyle
 import me.rerere.rikkahub.ui.modifier.motionStretchHeight
@@ -46,24 +39,8 @@ import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.rikkahub.ui.theme.SquareShapes
 import kotlin.math.roundToInt
 
-// 消息样式给出的模糊半径最多到这里。AdvancedMaterial 内部还会按 SDK 与实时档位再夹一次
-// （resolvedLiveAppearanceRadius：TIRAMISU 以下 12dp、以上 40dp），这里只挡住明显越界与非法值。
-private const val MAX_MESSAGE_STYLE_MATERIAL_RADIUS = 40f
-
 // 边框宽度上限：再宽就会盖住正文
 private const val MAX_MESSAGE_STYLE_BORDER_WIDTH = 8f
-
-/**
- * 正文沿用静态 M3 颜色；用户气泡不采样背景，助手正文不铺表面。
- * 保留这个入口供消息样式页与 Haze 采样判定使用。
- */
-@Suppress("UNUSED_PARAMETER")
-internal fun AdvancedAppearanceSetting.messageBubbleMaterial(
-    display: DisplaySetting,
-    target: ChatBubbleStyleTarget,
-    resolved: ResolvedBubbleStyle?,
-    streaming: Boolean,
-): AppearanceMaterial? = null
 
 /** 消息样式解析出的边框宽度：非有限值退回 1dp，上限见 [MAX_MESSAGE_STYLE_BORDER_WIDTH]。 */
 internal fun resolvedMessageBorderWidth(width: Dp): Dp =
@@ -72,7 +49,6 @@ internal fun resolvedMessageBorderWidth(width: Dp): Dp =
 internal data class ThinkingBubbleVisual(
     val resolvedStyle: ResolvedBubbleStyle?,
     val baseColor: Color,
-    val material: AppearanceMaterial?,
     val border: BorderStroke?,
     val radius: Dp,
     val contentColor: Color,
@@ -82,9 +58,7 @@ internal data class ThinkingBubbleVisual(
 
 @Composable
 internal fun resolveThinkingBubbleVisual(
-    appearance: AdvancedAppearanceSetting,
     display: DisplaySetting,
-    streaming: Boolean,
 ): ThinkingBubbleVisual {
     val customized = display.customizeThinkingToolCards &&
         display.chatMessageBackgroundStyle != ChatMessageBackgroundStyle.DEFAULT
@@ -93,57 +67,16 @@ internal fun resolveThinkingBubbleVisual(
         display = display,
         target = ChatBubbleStyleTarget.THINKING_TOOL_CARD,
     ) else null
-    val resolvedBase = resolved?.background ?: MaterialTheme.colorScheme.surfaceContainerHigh
-    val material = appearance.thinkingBubbleMaterial(display, resolved, streaming)
-    val base = if (material != null) resolvedBase.copy(alpha = 1f) else resolvedBase
+    val base = resolved?.background ?: MaterialTheme.colorScheme.surfaceContainerHigh
     return ThinkingBubbleVisual(
         resolvedStyle = resolved,
         baseColor = base,
-        material = material,
-        border = when {
-            resolved != null -> BorderStroke(resolvedMessageBorderWidth(resolved.borderWidth), resolved.border)
-            material != null -> appearance.richContentStyle.outline()
-            else -> null
-        },
+        border = resolved?.let { BorderStroke(resolvedMessageBorderWidth(it.borderWidth), it.border) },
         radius = resolved?.radius ?: 20.dp,
         contentColor = resolved?.text ?: MaterialTheme.colorScheme.onSurface,
         customized = customized,
-        cardContainerColor = if (material != null || customized) Color.Transparent
+        cardContainerColor = if (customized) Color.Transparent
             else base.copy(alpha = display.bubbleOpacity.coerceIn(0f, 1f)),
-    )
-}
-
-internal fun AdvancedAppearanceSetting.thinkingBubbleMaterial(
-    display: DisplaySetting,
-    resolved: ResolvedBubbleStyle?,
-    streaming: Boolean,
-): AppearanceMaterial? {
-    val custom = display.customizeThinkingToolCards &&
-        display.chatMessageBackgroundStyle != ChatMessageBackgroundStyle.DEFAULT
-    if (custom && display.chatMessageBackgroundStyle == ChatMessageBackgroundStyle.SOLID) return null
-    if (!enableAdvancedAppearance) {
-        if (!custom || display.chatMessageBackgroundStyle != ChatMessageBackgroundStyle.FROSTED) return null
-        val role = display.overridesFor(ChatBubbleStyleTarget.THINKING_TOOL_CARD)
-        return AppearanceMaterial(
-            style = BackgroundSurfaceStyle.FROSTED,
-            opacity = role.frostedOpacity ?: resolved?.background?.alpha ?: .66f,
-            radius = role.blurSigma?.let { finiteAppearanceValue(it, 0f, 30f, 14f) * 1.5f }
-                ?: resolved?.blurRadius?.value ?: 21f,
-            effects = !streaming,
-        )
-    }
-    val material = richContentMaterial(streaming) ?: return null
-    if (!custom) return material
-    val role = display.overridesFor(ChatBubbleStyleTarget.THINKING_TOOL_CARD)
-    return material.copy(
-        // Thinking cards inherit rich-content opacity and radius; only explicit thinking-role
-        // values override them. The body-bubble material slider must not leak into this surface.
-        opacity = role.frostedOpacity ?: material.opacity,
-        radius = when {
-            material.style == BackgroundSurfaceStyle.LIQUID_GLASS && liquidGlass.usesMaterial3Style() -> 16f
-            material.style.usesBlur && role.blurSigma != null -> finiteAppearanceValue(role.blurSigma, 0f, 30f, 14f) * 1.5f
-            else -> material.radius
-        },
     )
 }
 

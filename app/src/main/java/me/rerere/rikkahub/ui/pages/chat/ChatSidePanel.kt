@@ -60,9 +60,6 @@ import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.GitFork
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.components.ui.advancedMaterial
-import me.rerere.rikkahub.ui.components.ui.navigationMaterial
-import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.appButtonShadow
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberSlideSpec
@@ -108,23 +105,17 @@ internal fun ChatSidePanelColumn(
     content: @Composable (ChatSidePane) -> Unit,
 ) {
     val shape = RoundedCornerShape(24.dp)
-    val settings = LocalSettings.current
     val scheme = MaterialTheme.colorScheme
     val containerColor = scheme.surfaceContainerLow
-    val material = settings.advancedAppearanceSetting.takeIf { it.enableAdvancedAppearance }?.navigationMaterial()
     // 选中的标签被关掉、或恢复出来的选中项已经不在标签里时，退到第一个，别让内容区空着
     val active = selected?.takeIf { it in panes } ?: panes.firstOrNull()
 
-    val panel = material?.let {
-        Modifier.advancedMaterial(shape, containerColor, it, hazeState, readableFloor = .45f)
-    } ?: Modifier
     Surface(
         modifier = modifier
             .fillMaxHeight()
-            .appButtonShadow(shape, 6.dp)
-            .then(panel),
+            .appButtonShadow(shape, 6.dp),
         shape = shape,
-        color = if (material != null) Color.Transparent else containerColor,
+        color = containerColor,
         contentColor = scheme.onSurface,
     ) {
         Column(

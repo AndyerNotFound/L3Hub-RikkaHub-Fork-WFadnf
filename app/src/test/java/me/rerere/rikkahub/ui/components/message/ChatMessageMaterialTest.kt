@@ -1,75 +1,68 @@
 package me.rerere.rikkahub.ui.components.message
 
-import me.rerere.rikkahub.data.datastore.AdvancedAppearanceSetting
-import me.rerere.rikkahub.data.datastore.ChatBubbleStyle
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.data.datastore.ChatBubbleStyleOverrides
 import me.rerere.rikkahub.data.datastore.ChatBubbleStyleTarget
 import me.rerere.rikkahub.data.datastore.ChatMessageBackgroundStyle
 import me.rerere.rikkahub.data.datastore.DisplaySetting
-import me.rerere.rikkahub.data.datastore.RichContentStyle
+import me.rerere.rikkahub.ui.components.ui.resolveBubbleStyle
+import me.rerere.rikkahub.ui.components.ui.resolveMessageStyle
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
+/**
+ * 消息样式的接线与边界。
+ *
+ * 气泡现在只剩底色、描边、圆角三类可调项：这里钉住「默认档不覆盖预设」「磨砂/实色各自的
+ * 默认透明度」「按角色的覆盖项优先」，以及边框宽度对非法值与超限值的退回。
+ */
 class ChatMessageMaterialTest {
+    private val scheme = lightColorScheme()
+
     @Test
-    fun `plain appearance gives body bubbles no material`() {
-        val appearance = AdvancedAppearanceSetting(
-            enableAdvancedAppearance = true,
-            chatBubbleStyle = ChatBubbleStyle.FROSTED,
-            chatBubbleSurfaceOpacity = .8f,
-            chatBubbleBlurRadius = 12f,
-        )
+    fun `default message style leaves the preset untouched`() {
         val display = DisplaySetting(
-            chatMessageBackgroundStyle = ChatMessageBackgroundStyle.FROSTED,
-            userChatBubbleStyleOverrides = ChatBubbleStyleOverrides(frostedOpacity = .2f, blurSigma = 4f),
+            chatMessageBackgroundStyle = ChatMessageBackgroundStyle.DEFAULT,
+            assistantChatBubbleStyleOverrides = ChatBubbleStyleOverrides(frostedOpacity = .2f),
         )
 
-        assertNull(appearance.messageBubbleMaterial(display, ChatBubbleStyleTarget.USER, null, false))
-        assertNull(appearance.messageBubbleMaterial(display, ChatBubbleStyleTarget.ASSISTANT, null, false))
+        assertNull(resolveMessageStyle(scheme, display, ChatBubbleStyleTarget.ASSISTANT))
     }
 
     @Test
-    fun `empty thinking role inherits rich content opacity and sixteen dp radius`() {
-        val appearance = AdvancedAppearanceSetting(
-            enableAdvancedAppearance = true,
-            richContentStyle = RichContentStyle.TRANSLUCENT,
-            richContentSurfaceOpacity = .14f,
-            richContentSurfaceBlurRadius = 16f,
-        )
-        val display = DisplaySetting(
-            chatMessageBackgroundStyle = ChatMessageBackgroundStyle.FROSTED,
-            customizeThinkingToolCards = true,
-            thinkingToolCardStyleOverrides = ChatBubbleStyleOverrides(),
-        )
+    fun `frosted and solid keep their own opacity defaults`() {
+        val frosted = resolveBubbleStyle(scheme, ChatMessageBackgroundStyle.FROSTED, ChatBubbleStyleOverrides())
+        val solid = resolveBubbleStyle(scheme, ChatMessageBackgroundStyle.SOLID, ChatBubbleStyleOverrides())
 
-        val material = requireNotNull(appearance.thinkingBubbleMaterial(display, resolved = null, streaming = false))
-        assertEquals(.14f, material.opacity, 0f)
-        assertEquals(16f, material.radius, 0f)
+        assertEquals(.66f, frosted.background.alpha, .001f)
+        assertEquals(1f, solid.background.alpha, 1e-6f)
+        assertEquals(16f, frosted.radius.value, 1e-6f)
     }
 
     @Test
-    fun `thinking cards inherit rich content rather than body bubble settings`() {
-        val appearance = AdvancedAppearanceSetting(
-            enableAdvancedAppearance = true,
-            chatBubbleSurfaceOpacity = .9f,
-            chatBubbleBlurRadius = 39f,
-            richContentStyle = RichContentStyle.TRANSLUCENT,
-            richContentSurfaceOpacity = .4f,
-            richContentSurfaceBlurRadius = 7f,
-            enableRichContentPerformanceEffects = false,
-        )
+    fun `per role overrides win over the style default`() {
         val display = DisplaySetting(
             chatMessageBackgroundStyle = ChatMessageBackgroundStyle.FROSTED,
-            customizeThinkingToolCards = true,
-            thinkingToolCardStyleOverrides = ChatBubbleStyleOverrides(frostedOpacity = .3f, blurSigma = 3f),
+            assistantChatBubbleStyleOverrides = ChatBubbleStyleOverrides(
+                frostedOpacity = .3f,
+                borderWidth = 2f,
+                cornerRadius = 8f,
+            ),
         )
-        val material = requireNotNull(appearance.thinkingBubbleMaterial(display, resolved = null, streaming = false))
-        assertEquals(.3f, material.opacity, 0f)
-        assertEquals(4.5f, material.radius, 0f)
-        assertEquals(false, material.effects)
 
-        val solid = display.copy(chatMessageBackgroundStyle = ChatMessageBackgroundStyle.SOLID)
-        assertNull(appearance.thinkingBubbleMaterial(solid, resolved = null, streaming = false))
+        val resolved = requireNotNull(resolveMessageStyle(scheme, display, ChatBubbleStyleTarget.ASSISTANT))
+        assertEquals(.3f, resolved.background.alpha, .001f)
+        assertEquals(2f, resolved.borderWidth.value, 1e-6f)
+        assertEquals(8f, resolved.radius.value, 1e-6f)
+    }
+
+    @Test
+    fun `border width clamps non finite and oversized input`() {
+        assertEquals(1f, resolvedMessageBorderWidth(Float.NaN.dp).value, 1e-6f)
+        assertEquals(8f, resolvedMessageBorderWidth(40f.dp).value, 1e-6f)
+        assertEquals(2f, resolvedMessageBorderWidth(2f.dp).value, 1e-6f)
+        assertEquals(0f, resolvedMessageBorderWidth(0f.dp).value, 1e-6f)
     }
 }

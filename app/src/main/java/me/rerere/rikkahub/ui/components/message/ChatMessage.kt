@@ -113,10 +113,7 @@ import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.richtext.MarkdownRenderMode
 import me.rerere.rikkahub.ui.components.richtext.RichChartCard
 import me.rerere.rikkahub.ui.components.richtext.SelectableContent
-import me.rerere.rikkahub.ui.components.richtext.advancedChatParagraphGap
-import me.rerere.rikkahub.ui.components.richtext.withAdvancedChatLineHeight
 import me.rerere.rikkahub.ui.components.ui.ChainOfThought
-import me.rerere.rikkahub.ui.components.ui.advancedMaterial
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -256,7 +253,7 @@ fun ChatMessage(
             } catch (cancel: CancellationException) {
                 throw cancel
             } catch (_: Exception) {
-                toaster.show(context.getString(R.string.aa_preview_failed), type = me.rerere.ui.toast.ToastType.Error)
+                toaster.show(context.getString(R.string.message_preview_failed), type = me.rerere.ui.toast.ToastType.Error)
             }
         }
     }
@@ -712,20 +709,13 @@ private fun MessagePartsBlock(
                         maxOf(COLLAPSED_VISIBLE_STEPS, block.steps.size - firstPendingIndex)
                     }
                     val chainVisual = resolveThinkingBubbleVisual(
-                        appearance = settings.advancedAppearanceSetting,
                         display = settings.displaySetting,
-                        streaming = loading,
                     )
                     val chainShape = adaptiveShape(chainVisual.radius)
-                    val chainModifier = when {
-                        chainVisual.material != null -> Modifier.advancedMaterial(
-                            chainShape,
-                            chainVisual.baseColor,
-                            chainVisual.material,
-                            hazeState,
-                        )
-                        chainVisual.customized -> Modifier.background(chainVisual.baseColor, chainShape)
-                        else -> Modifier
+                    val chainModifier = if (chainVisual.customized) {
+                        Modifier.background(chainVisual.baseColor, chainShape)
+                    } else {
+                        Modifier
                     }
                     ChainOfThought(
                         modifier = chainModifier,
@@ -829,7 +819,7 @@ private fun MessagePartsBlock(
                                         val paragraphs = remember(renderedText, splitByParagraph) {
                                             splitMarkdownParagraphs(renderedText).ifEmpty { listOf(renderedText) }
                                         }
-                                        Column(verticalArrangement = Arrangement.spacedBy(advancedChatParagraphGap(4.dp))) {
+                                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                             paragraphs.fastForEachIndexed { index, paragraph ->
                                                 key(index) {
                                                     ChatMessageBubble(
@@ -871,7 +861,7 @@ private fun MessagePartsBlock(
                                             // 生成中退回静态底色，避免每个 token 重采样模糊背景
                                             streaming = true,
                                         ) {
-                                            Column(verticalArrangement = Arrangement.spacedBy(advancedChatParagraphGap(4.dp))) {
+                                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                                 paragraphs.fastForEachIndexed { index, paragraph ->
                                                     key(paragraph) {
                                                         MarkdownBlock(
@@ -905,7 +895,7 @@ private fun MessagePartsBlock(
                                         val paragraphs = remember(renderedText) {
                                             splitMarkdownParagraphs(renderedText).ifEmpty { listOf(renderedText) }
                                         }
-                                        Column(verticalArrangement = Arrangement.spacedBy(advancedChatParagraphGap(4.dp))) {
+                                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                             paragraphs.fastForEachIndexed { index, paragraph ->
                                                 key(paragraph) {
                                                     MarkdownBlock(
@@ -1037,7 +1027,7 @@ private fun CollapsibleUserMessageText(
 ) {
     var expanded by remember(text) { mutableStateOf(false) }
     val measurer = rememberTextMeasurer()
-    val style = LocalTextStyle.current.withAdvancedChatLineHeight()
+    val style = LocalTextStyle.current
     val markdownPaddingPx = with(LocalDensity.current) { 8.dp.roundToPx() }
     // 行高从实际排版量出来：fontSizeRatio、自定义字体、未指定 lineHeight 时都能对上，
     // 不能再拿 LocalTextStyle 的 lineHeight 猜，猜小了会把三行的话也算成需要折叠

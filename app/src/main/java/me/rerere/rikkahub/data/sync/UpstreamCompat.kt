@@ -71,10 +71,14 @@ internal object UpstreamCompat {
     )
     private const val AVATAR_DUMMY = "me.rerere.rikkahub.data.model.Avatar.Dummy"
 
-    /** 原版缺失的枚举值按最近的档位降级，键是序列化后的字段名 */
+    /**
+     * 原版缺失的枚举值按最近的档位降级，键是序列化后的字段名。
+     *
+     * 高级外观下线后 `backgroundEffectType` 已经不在模型里，导出时不会出现这个键，原来那条
+     * 「off → blur」的映射一并去掉：留着只会让人以为它还有用。
+     */
     private val ENUM_VALUES = mapOf(
         "reasoningLevel" to mapOf("minimal" to "low", "ultra" to "max"),
-        "backgroundEffectType" to mapOf("off" to "blur"),
     )
 
     /**

@@ -75,7 +75,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.chrisbanes.haze.rememberHazeState
 import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.CancellationException
@@ -83,6 +82,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import dev.chrisbanes.haze.HazeState
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderSetting
@@ -121,7 +121,6 @@ import me.rerere.rikkahub.ui.components.message.tools.LocalToolDetailHost
 import me.rerere.rikkahub.ui.components.message.tools.ToolDetailHostState
 import me.rerere.rikkahub.ui.components.message.usageTokenSpeed
 import me.rerere.rikkahub.ui.components.ui.ColumnResizeHandle
-import me.rerere.rikkahub.ui.components.ui.LocalAdvancedAppearanceBusy
 import me.rerere.rikkahub.ui.components.ui.LocalGlassHazeState
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -189,7 +188,6 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
             else -> null
         }
     }
-    val advanced = setting.advancedAppearanceSetting.enableAdvancedAppearance
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val androidRootView = LocalView.current
@@ -251,9 +249,10 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     }
 
     val chatListState = rememberLazyListState()
-    val hazeCapture = rememberChatHazeCaptureState(setting, chatListState, loadingJob != null || sessionActivity != null)
-    val backgroundHazeState = rememberHazeState().takeIf { hazeCapture.plan.background }
-    val chromeHazeState = rememberHazeState().takeIf { hazeCapture.plan.chrome }
+    // 朴素外观不再采样背景：两份 Haze 源保持 null。传参保留下来，免得把整条 Haze 依赖下线
+    // 一起卷进这次改动；GlassSurface 那边拿到 null 就是不画模糊。
+    val backgroundHazeState: HazeState? = null
+    val chromeHazeState: HazeState? = null
     LaunchedEffect(nodeId, conversationMessageCount) {
         val conversation = conversationState.value
         if (!vm.chatListInitialized && conversation.messageNodes.isNotEmpty()) {
@@ -292,7 +291,6 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
         errors = errors,
         backgroundHazeState = backgroundHazeState,
         chromeHazeState = chromeHazeState,
-        topBarSamplesMessages = hazeCapture.plan.topBarSamplesMessages,
     )
     val pageActions = ChatPageActions(
         onStartVoiceMode = startVoiceMode,
@@ -304,16 +302,8 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null) {
     CompositionLocalProvider(
         LocalToolDetailHost provides toolDetailHost,
         LocalGlassHazeState provides backgroundHazeState,
-        LocalAdvancedAppearanceBusy provides hazeCapture.busy,
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-        if (advanced) AssistantBackground(
-            setting = setting,
-            assistant = assistant,
-            modifier = Modifier.chatHazeSources(backgroundHazeState, chromeHazeState),
-            scrim = !threePaneLayout,
-            animateGradient = loadingJob == null && sessionActivity == null,
-        )
         if (threePaneLayout) {
             val baseDensity = LocalDensity.current
             // 横屏三栏：整块缩到 75%。三列并排后每列都只剩竖屏的三分之一宽，
@@ -432,7 +422,6 @@ private fun ChatPageContent(
         portraitTab = tab.coerceIn(0, 3)
         previewMode = false
     }
-    val advanced = state.setting.advancedAppearanceSetting.enableAdvancedAppearance
     // 顶栏、配额条/看板、会话详情浮层都压在消息正文上：统一取 chrome 源（背景 + 正文）。
     // 只给 background 源的话，浮层底下滚过去的正文糊不出来，着色一淡就透字。
     // 抽屉不用这一份 —— 它是整块侧栏、背后是页面背景，仍取 state.backgroundHazeState。
@@ -986,13 +975,12 @@ private fun ChatPageContent(
 
     Surface(
         color = Color.Transparent,
-        contentColor = if (advanced) MaterialTheme.colorScheme.onBackground else contentColorFor(LocalUiSlots.current.pageBackground),
+        contentColor = contentColorFor(LocalUiSlots.current.pageBackground),
         modifier = Modifier.fillMaxSize()
     ) {
-        // The advanced root background spans the three panes. Keep the legacy background inside this surface.
-        if (!advanced) AssistantBackground(
+        AssistantBackground(
             setting = state.setting,
-            modifier = Modifier.chatHazeSources(state.backgroundHazeState, state.chromeHazeState),
+            modifier = Modifier,
             scrim = !state.threePane,
             animateGradient = state.loadingJob == null,
         )
@@ -1226,7 +1214,6 @@ private fun ChatPageContent(
                                 settings = state.setting,
                                 bubbleHazeState = state.backgroundHazeState,
                                 contentSource = state.chromeHazeState,
-                                retainContentSourceForTopBar = state.topBarSamplesMessages,
                                 errors = state.errors,
                                 onDismissError = actions.onDismissError,
                                 onClearAllErrors = actions.onClearAllErrors,

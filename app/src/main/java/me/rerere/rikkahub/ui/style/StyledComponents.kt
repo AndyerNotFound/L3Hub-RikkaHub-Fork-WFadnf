@@ -46,21 +46,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupProperties
-import me.rerere.rikkahub.ui.components.ui.LocalAdvancedPageMaterial
-import me.rerere.rikkahub.ui.components.ui.LocalTopBarHazeState
-import me.rerere.rikkahub.ui.components.ui.advancedMaterial
 import me.rerere.rikkahub.ui.components.ui.glassSwitchColors
-import me.rerere.rikkahub.ui.components.ui.topBarMaterial
-import me.rerere.rikkahub.ui.context.LocalSettings
-import me.rerere.rikkahub.ui.theme.LocalUiSlots
-import me.rerere.ui.components.LocalSeparateWindow
 import me.rerere.ui.components.LocalSeparateWindowColors
 import me.rerere.ui.components.SeparateWindowContent
 
@@ -251,9 +242,9 @@ fun Card(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     androidx.compose.material3.Card(
-        modifier = modifier.pageCardMaterial(shape, colors.containerColor),
+        modifier = modifier,
         shape = shape,
-        colors = colors.withPageMaterial(),
+        colors = colors,
         elevation = elevation,
         border = border,
         content = content,
@@ -274,10 +265,10 @@ fun Card(
 ) {
     androidx.compose.material3.Card(
         onClick = onClick,
-        modifier = modifier.pageCardMaterial(shape, colors.containerColor, enabled),
+        modifier = modifier,
         enabled = enabled,
         shape = shape,
-        colors = colors.withPageMaterial(enabled),
+        colors = colors,
         elevation = elevation,
         border = border,
         interactionSource = interactionSource,
@@ -295,9 +286,9 @@ fun OutlinedCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     androidx.compose.material3.OutlinedCard(
-        modifier = modifier.pageCardMaterial(shape, colors.containerColor),
+        modifier = modifier,
         shape = shape,
-        colors = colors.withPageMaterial(),
+        colors = colors,
         elevation = elevation,
         border = border,
         content = content,
@@ -318,10 +309,10 @@ fun OutlinedCard(
 ) {
     androidx.compose.material3.OutlinedCard(
         onClick = onClick,
-        modifier = modifier.pageCardMaterial(shape, colors.containerColor, enabled),
+        modifier = modifier,
         enabled = enabled,
         shape = shape,
-        colors = colors.withPageMaterial(enabled),
+        colors = colors,
         elevation = elevation,
         border = border,
         interactionSource = interactionSource,
@@ -338,52 +329,13 @@ fun ElevatedCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     androidx.compose.material3.ElevatedCard(
-        modifier = modifier.pageCardMaterial(shape, colors.containerColor),
+        modifier = modifier,
         shape = shape,
-        colors = colors.withPageMaterial(),
+        colors = colors,
         elevation = elevation,
         content = content,
     )
 }
-
-@Composable
-private fun usePageCardMaterial(color: Color, enabled: Boolean) =
-    enabled && color.isSpecified && color.alpha > 0f && !LocalSeparateWindow.current &&
-        LocalAdvancedPageMaterial.current != null
-
-@Composable
-private fun Modifier.pageCardMaterial(shape: Shape, color: Color, enabled: Boolean = true): Modifier {
-    if (!usePageCardMaterial(color, enabled)) return this
-    val material = LocalAdvancedPageMaterial.current ?: return this
-    return advancedMaterial(shape, color, material, readableFloor = .18f)
-}
-
-@Composable
-private fun CardColors.withPageMaterial(enabled: Boolean = true): CardColors =
-    if (usePageCardMaterial(containerColor, enabled)) copy(containerColor = Color.Transparent) else this
-
-@Composable
-private fun Modifier.settingsTopBarMaterial(base: Color): Modifier {
-    if (LocalAdvancedPageMaterial.current == null || LocalSeparateWindow.current) return this
-    val settings = LocalSettings.current
-    if (!settings.displaySetting.showTopBarBackground) return this
-    val material = settings.advancedAppearanceSetting.topBarMaterial(settings.displaySetting) ?: return this
-    val color = if (base.isSpecified && base.alpha > 0f) base else LocalUiSlots.current.topBar
-    return advancedMaterial(
-        RectangleShape,
-        color,
-        material,
-        hazeState = LocalTopBarHazeState.current,
-    )
-}
-
-@Composable
-private fun TopAppBarColors.withPageMaterial(): TopAppBarColors =
-    if (LocalAdvancedPageMaterial.current != null && !LocalSeparateWindow.current) {
-        // The shared material draws the background when enabled; otherwise the bar stays transparent.
-        // Restoring M3's opaque container here would undo the "show top bar background" switch.
-        copy(containerColor = Color.Transparent, scrolledContainerColor = Color.Transparent)
-    } else this
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -399,12 +351,12 @@ fun TopAppBar(
 ) {
     androidx.compose.material3.TopAppBar(
         title = title,
-        modifier = modifier.settingsTopBarMaterial(colors.containerColor),
+        modifier = modifier,
         navigationIcon = navigationIcon,
         actions = actions,
         expandedHeight = expandedHeight,
         windowInsets = windowInsets,
-        colors = colors.withPageMaterial(),
+        colors = colors,
         scrollBehavior = scrollBehavior,
     )
 }
@@ -422,11 +374,11 @@ fun LargeFlexibleTopAppBar(
 ) {
     androidx.compose.material3.LargeFlexibleTopAppBar(
         title = title,
-        modifier = modifier.settingsTopBarMaterial(colors.containerColor),
+        modifier = modifier,
         navigationIcon = navigationIcon,
         actions = actions,
         windowInsets = windowInsets,
-        colors = colors.withPageMaterial(),
+        colors = colors,
         scrollBehavior = scrollBehavior,
     )
 }
@@ -446,11 +398,11 @@ fun LargeFlexibleTopAppBar(
     androidx.compose.material3.LargeFlexibleTopAppBar(
         title = title,
         subtitle = subtitle,
-        modifier = modifier.settingsTopBarMaterial(colors.containerColor),
+        modifier = modifier,
         navigationIcon = navigationIcon,
         actions = actions,
         windowInsets = windowInsets,
-        colors = colors.withPageMaterial(),
+        colors = colors,
         scrollBehavior = scrollBehavior,
     )
 }

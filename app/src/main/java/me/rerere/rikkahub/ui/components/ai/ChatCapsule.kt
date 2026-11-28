@@ -20,9 +20,6 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
-import me.rerere.rikkahub.data.datastore.BackgroundSurfaceStyle
-import me.rerere.rikkahub.ui.components.ui.AppearanceMaterial
-import me.rerere.rikkahub.ui.components.ui.advancedMaterial
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
 import me.rerere.rikkahub.ui.theme.appButtonShadow
 
@@ -36,34 +33,23 @@ private fun capsuleShape(): RoundedCornerShape =
     }
 
 /**
- * 这一档材质要不要再补一道平描边。
+ * 胶囊的底与轮廓。
  *
- * 玻璃档由 [advancedMaterial] 自己画渐变描边（高光 + 内阴影），再叠一道平线就成了双线，
- * 所以只有玻璃档返回 false；其余各档（含实色）都补一道，和实色底那条路一样能看清边界。
+ * [outlineOnly] 时不画底色、只补一道轮廓：底色由调用方（顶栏）已经在后面画好，
+ * 再叠一层就成了双层描边。[hazeState] 只为兼容调用点保留，朴素外观不采样背景。
  */
-internal fun AppearanceMaterial?.needsFlatOutline(): Boolean =
-    this != null && style != BackgroundSurfaceStyle.LIQUID_GLASS
-
-/** [outlineOnly] leaves blur and tint to the top bar already drawn behind this control. */
+@Suppress("UNUSED_PARAMETER")
 @Composable
 internal fun Modifier.chatCapsuleSurface(
     shape: Shape,
     base: Color,
-    material: AppearanceMaterial?,
     hazeState: HazeState?,
-    readableFloor: Float = 0f,
     outlineOnly: Boolean = false,
-): Modifier {
-    val surface = when {
-        outlineOnly -> this
-        material == null -> background(base, shape)
-        else -> advancedMaterial(shape, base, material, hazeState, readableFloor)
-    }
-    return if (outlineOnly || material.needsFlatOutline()) {
-        surface.border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), shape)
-    } else {
-        surface
-    }
+): Modifier = if (outlineOnly) {
+    border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), shape)
+} else {
+    background(base, shape)
+        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), shape)
 }
 
 /**
@@ -72,14 +58,12 @@ internal fun Modifier.chatCapsuleSurface(
  * 圆角取 50%，容器多高就圆出多大的药丸；高度由调用方通过 [modifier] 给。
  * 里面的入口各自点击，段与段之间用 [ChatCapsuleDivider] 隔开。
  *
- * [material] 由调用方决定，传 null 时退回实色底。[outlineOnly] 只绘制轮廓，不覆盖已有的顶栏背景。
+ * [outlineOnly] 只绘制轮廓，不覆盖已有的顶栏背景。
  */
 @Composable
 internal fun ChatCapsule(
     hazeState: HazeState?,
     modifier: Modifier = Modifier,
-    material: AppearanceMaterial? = null,
-    readableFloor: Float = .35f,
     outlineOnly: Boolean = false,
     content: @Composable RowScope.() -> Unit,
 ) {
@@ -93,9 +77,7 @@ internal fun ChatCapsule(
             .chatCapsuleSurface(
                 shape = shape,
                 base = containerColor,
-                material = material,
                 hazeState = hazeState,
-                readableFloor = readableFloor,
                 outlineOnly = outlineOnly,
             ),
         verticalAlignment = Alignment.CenterVertically,

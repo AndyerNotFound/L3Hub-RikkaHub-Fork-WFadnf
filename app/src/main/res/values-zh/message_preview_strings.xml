@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="message_preview">消息预览</string>
+    <string name="message_preview_truncated">预览已截断。完整内容请在聊天里查看。</string>
+    <string name="message_preview_missing">预览已过期，请从消息重新打开。</string>
+    <string name="message_preview_failed">无法打开消息预览。</string>
+</resources>

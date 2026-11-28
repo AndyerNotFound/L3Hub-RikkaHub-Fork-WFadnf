@@ -16,7 +16,6 @@ class UpstreamCompatTest {
     private val settings = """
         {
           "themeId": "minimal",
-          "backgroundEffectType": "off",
           "providers": [
             {
               "type": "openai",
@@ -65,7 +64,8 @@ class UpstreamCompatTest {
             settings.replace("\"ultra\"", "\"minimal\"")
         )
         assertEquals("low", json["assistants"]!!.jsonArray[0].jsonObject["reasoningLevel"]!!.jsonPrimitive.content)
-        assertEquals("blur", json["backgroundEffectType"]!!.jsonPrimitive.content)
+        // Retired effects are no longer exported; compatibility must not invent them.
+        assertFalse(json.containsKey("backgroundEffectType"))
     }
 
     @Test

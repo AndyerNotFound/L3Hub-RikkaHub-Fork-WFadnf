@@ -2,18 +2,20 @@ package me.rerere.rikkahub.data.datastore
 
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.mutablePreferencesOf
+import kotlin.uuid.Uuid
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.descriptors.elementNames
+import kotlinx.serialization.json.jsonObject
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.asr.ASRProviderSetting
 import me.rerere.mediagen.provider.MediaGenerationProviderSetting
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
+import me.rerere.rikkahub.data.datastore.migration.RetiredAppearanceCleanup
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.ExecutionPermission
 import me.rerere.rikkahub.data.model.ImageCrop
-import me.rerere.rikkahub.data.model.InspirationAppearance
 import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.PromptInjection
 import me.rerere.rikkahub.data.model.QuickMessage
@@ -23,15 +25,13 @@ import me.rerere.rikkahub.data.sync.s3.S3Config
 import me.rerere.rikkahub.ui.theme.CustomTheme
 import me.rerere.rikkahub.ui.theme.PaletteColors
 import me.rerere.rikkahub.ui.theme.PaletteSetting
+import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.search.SearchCommonOptions
 import me.rerere.search.SearchServiceOptions
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import kotlin.uuid.Uuid
 
 class SettingsFieldsTest {
     @OptIn(ExperimentalSerializationApi::class)
@@ -78,6 +78,25 @@ class SettingsFieldsTest {
         )
     }
 
+    // 高级外观下线后：盘上没有那份 JSON，显示设置里也不再写出那批退役键
+    @Test
+    fun `retired appearance fields are neither stored nor serialized`() {
+        val stored = mutablePreferencesOf().apply { putSettings(SAMPLE) }.asMap().mapKeys { it.key.name }
+
+        assertFalse("advanced_appearance_setting" in stored)
+
+        val display = JsonInstant
+            .parseToJsonElement(JsonInstant.encodeToString(DisplaySetting.serializer(), SAMPLE.displaySetting))
+            .jsonObject
+        RetiredAppearanceCleanup.retiredDisplayKeys().forEach { key ->
+            assertFalse("显示设置里不该再有退役键 $key", key in display)
+        }
+        // 还在用的显示项照旧落盘：顶栏背景、动态模糊、普通消息样式
+        assertTrue("showTopBarBackground" in display)
+        assertTrue("motionBlur" in display)
+        assertTrue("chatMessageBackgroundStyle" in display)
+    }
+
     @Test
     fun `old assistants keep their data when workspace permissions are migrated`() {
         val assistantsJson = """
@@ -119,13 +138,8 @@ class SettingsFieldsTest {
         assertTrue(settings.modelFingerprintStrictMode)
         // 朴素外观：新装不跟壁纸取色
         assertEquals(false, settings.dynamicColor)
-        assertEquals(AdvancedAppearanceSetting(), settings.advancedAppearanceSetting)
-        // 旧全局特效与「已经搬过」的标记：新装默认没有旧特效，标记默认就是 true，界面不读它们
-        assertEquals(false, settings.displaySetting.enableBlurEffect)
-        assertEquals(BackgroundEffectType.BLUR, settings.displaySetting.backgroundEffectType)
-        assertEquals(true, settings.displaySetting.legacyEffectsMigrated)
-        assertEquals(.45f, settings.displaySetting.blurOpacity, 0f)
-        assertEquals(.35f, settings.displaySetting.glassOpacity, 0f)
+        // 顶栏背景是普通显示项，跟高级外观无关，仍然默认关
+        assertEquals(false, settings.displaySetting.showTopBarBackground)
         assertEquals(8080, settings.webServerPort)
         assertEquals(false, settings.sshServerEnabled)
         assertEquals(2222, settings.sshServerPort)
@@ -161,278 +175,6 @@ class SettingsFieldsTest {
         assertEquals("on disk", preferences[SettingsStore.TITLE_PROMPT])
     }
 
-    // 高级外观默认是关的：旧版本盘上没有这个 key 时读出来就是「不启用」，不会把新外观强加给老用户
-    @Test
-    fun `advanced appearance is off unless it was turned on`() {
-        val fromEmpty = emptyPreferences().toSettings().advancedAppearanceSetting
-        assertFalse(fromEmpty.enableAdvancedAppearance)
-        assertEquals(AdvancedAppearanceSetting(), fromEmpty)
-
-        // 只写了部分字段的旧 JSON：缺的字段回落到默认值，多出来的键被忽略
-        val legacy = mutablePreferencesOf(
-            SettingsStore.ADVANCED_APPEARANCE_SETTING to
-                """{"enableAdvancedAppearance":true,"pageSurfaceStyle":"mica","removedOption":42}"""
-        ).toSettings().advancedAppearanceSetting
-
-        assertTrue(legacy.enableAdvancedAppearance)
-        assertEquals(BackgroundSurfaceStyle.MICA, legacy.pageSurfaceStyle)
-        assertEquals(AdvancedAppearanceSetting().overlaySurfaceStyle, legacy.overlaySurfaceStyle)
-        assertEquals(AdvancedAppearanceSetting().chatTextLineHeightRatio, legacy.chatTextLineHeightRatio, 0f)
-    }
-
-    @Test
-    fun `advanced appearance survives a preferences round trip`() {
-        val appearance = AdvancedAppearanceSetting(
-            enableAdvancedAppearance = true,
-            enableGlobalBackground = true,
-            globalBackground = "uploads/bg.webp",
-            globalBackgroundOpacity = .35f,
-            applyGlobalBackgroundToChat = true,
-            applyGlobalBackgroundToFullscreenPreview = false,
-            pageSurfaceStyle = BackgroundSurfaceStyle.FROSTED,
-            overlaySurfaceStyle = BackgroundSurfaceStyle.LIQUID_GLASS,
-            navigationSurfaceStyle = BackgroundSurfaceStyle.ACRYLIC,
-            textColorMode = TextColorMode.SYSTEM_WALLPAPER,
-            colorStyle = AppearanceColorStyle.EXPRESSIVE,
-            gradientRendererMode = GradientRendererMode.AGSL,
-            chatBubbleStyle = ChatBubbleStyle.LIQUID_GLASS,
-            richContentStyle = RichContentStyle.OUTLINED,
-            chatTextLineHeightRatio = 1.4f,
-            chatParagraphSpacingRatio = .5f,
-            wallpaperTextSeedArgb = 0xFF112233L,
-            wallpaperTextSeedWallpaperId = 7,
-            inspirationAppearance = InspirationAppearance(followRichContent = false, cornerRadius = 20f),
-        )
-        val settings = SAMPLE.copy(advancedAppearanceSetting = appearance)
-
-        val stored = mutablePreferencesOf().apply { putSettings(settings) }
-
-        assertEquals(appearance, stored.toSettings().advancedAppearanceSetting)
-        // 枚举按 @SerialName 落盘，改名等于丢掉用户已经存下的选择
-        val raw = stored[SettingsStore.ADVANCED_APPEARANCE_SETTING].orEmpty()
-        assertTrue(raw.contains("\"frosted\""))
-        assertTrue(raw.contains("\"liquid_glass\""))
-        assertTrue(raw.contains("\"acrylic\""))
-        assertTrue(raw.contains("\"system_wallpaper\""))
-        assertTrue(raw.contains("\"expressive\""))
-        assertTrue(raw.contains("\"agsl\""))
-        assertTrue(raw.contains("\"outlined\""))
-    }
-
-    // 盘上越界或非有限的值在读盘规整时收回范围，界面拿到的永远是能直接画的值。
-    // 透明度是 0..1 的模型：下限是 0（不再是 .35 / .2），所以 0.01 这种小值要原样留着。
-    @Test
-    fun `advanced appearance inputs are clamped on read`() {
-        val stored = mutablePreferencesOf(
-            SettingsStore.ADVANCED_APPEARANCE_SETTING to """
-                {
-                  "micaTintStrength": 5.0,
-                  "globalBackground": "   ",
-                  "globalBackgroundOpacity": -1.0,
-                  "globalBackgroundBlurRadius": 999.0,
-                  "pageSurfaceOpacity": 0.01,
-                  "overlaySurfaceOpacity": -0.5,
-                  "navigationGlassOpacity": 0.03,
-                  "chatDockGlassOpacity": 0.04,
-                  "richContentSurfaceOpacity": 0.05,
-                  "chatBubbleSurfaceOpacity": 2.0,
-                  "chatBubbleBlurRadius": 99.0,
-                  "chatTextLineHeightRatio": 9.0,
-                  "chatParagraphSpacingRatio": 0.0,
-                  "chatSuggestionMaxHeight": 10.0,
-                  "colorContrast": -5.0,
-                  "inspirationAppearance": {"surfaceOpacity": 5.0, "cornerRadius": 99.0}
-                }
-            """.trimIndent()
-        )
-
-        val appearance = stored.toSettings().normalized().advancedAppearanceSetting
-
-        assertEquals(1f, appearance.micaTintStrength, 0f)
-        assertNull(appearance.globalBackground)
-        assertEquals(0f, appearance.globalBackgroundOpacity, 0f)
-        assertEquals(MAX_GLOBAL_BACKGROUND_BLUR_RADIUS, appearance.globalBackgroundBlurRadius, 0f)
-        assertEquals(.01f, appearance.pageSurfaceOpacity, 0f)
-        assertEquals(0f, appearance.overlaySurfaceOpacity, 0f)
-        assertEquals(.03f, appearance.navigationGlassOpacity, 0f)
-        assertEquals(.04f, appearance.chatDockGlassOpacity, 0f)
-        assertEquals(.05f, appearance.richContentSurfaceOpacity, 0f)
-        assertEquals(1f, appearance.chatBubbleSurfaceOpacity!!, 0f)
-        assertEquals(40f, appearance.chatBubbleBlurRadius!!, 0f)
-        assertEquals(MAX_CHAT_TEXT_LINE_HEIGHT_RATIO, appearance.chatTextLineHeightRatio, 0f)
-        assertEquals(MIN_CHAT_PARAGRAPH_SPACING_RATIO, appearance.chatParagraphSpacingRatio, 0f)
-        assertEquals(MIN_CHAT_SUGGESTION_HEIGHT, appearance.chatSuggestionMaxHeight, 0f)
-        assertEquals(-1f, appearance.colorContrast, 0f)
-        assertEquals(1f, appearance.inspirationAppearance.surfaceOpacity, 0f)
-        assertEquals(28f, appearance.inspirationAppearance.cornerRadius, 0f)
-    }
-
-    // 非有限值（NaN / Infinity）不夹取而是回落到设计值，否则渲染出来是空白
-    @Test
-    fun `non finite appearance values fall back to design values`() {
-        val appearance = AdvancedAppearanceSetting(
-            chatTextLineHeightRatio = Float.NaN,
-            chatParagraphSpacingRatio = Float.NEGATIVE_INFINITY,
-            pageSurfaceOpacity = Float.POSITIVE_INFINITY,
-        ).normalized()
-
-        assertEquals(1.5f, appearance.chatTextLineHeightRatio, 0f)
-        assertEquals(.65f, appearance.chatParagraphSpacingRatio, 0f)
-        assertEquals(.68f, appearance.pageSurfaceOpacity, 0f)
-        assertEquals(1.5f, appearance.normalizedChatTextLineHeightRatio(), 0f)
-        assertEquals(.65f, appearance.normalizedChatParagraphSpacingRatio(), 0f)
-    }
-
-    @Test
-    fun `unknown appearance mode falls back without losing other options`() {
-        val settings = mutablePreferencesOf(
-            SettingsStore.ADVANCED_APPEARANCE_SETTING to
-                """{"enableAdvancedAppearance":true,"textColorMode":"future_mode","pageSurfaceStyle":"mica"}""",
-            SettingsStore.TITLE_PROMPT to "custom title prompt",
-        ).toSettings()
-
-        assertTrue(settings.advancedAppearanceSetting.enableAdvancedAppearance)
-        assertEquals(TextColorMode.THEME, settings.advancedAppearanceSetting.textColorMode)
-        assertEquals(BackgroundSurfaceStyle.MICA, settings.advancedAppearanceSetting.pageSurfaceStyle)
-        assertEquals("custom title prompt", settings.titlePrompt)
-    }
-
-    @Test
-    fun `malformed appearance json does not reset unrelated preferences`() {
-        val settings = mutablePreferencesOf(
-            SettingsStore.ADVANCED_APPEARANCE_SETTING to "{",
-            SettingsStore.TITLE_PROMPT to "custom title prompt",
-        ).toSettings()
-
-        assertEquals(AdvancedAppearanceSetting(), settings.advancedAppearanceSetting)
-        assertEquals("custom title prompt", settings.titlePrompt)
-    }
-
-    // 高级外观关掉时，即使背景图、不透明度、两个「应用到」开关都留着，也不该有任何一层背景生效
-    @Test
-    fun `disabling advanced appearance switches every background off`() {
-        val on = Settings(
-            advancedAppearanceSetting = AdvancedAppearanceSetting(
-                enableAdvancedAppearance = true,
-                enableGlobalBackground = true,
-                globalBackground = "uploads/bg.webp",
-                globalBackgroundOpacity = .8f,
-                pageSurfaceStyle = BackgroundSurfaceStyle.TRANSLUCENT,
-                applyGlobalBackgroundToChat = true,
-                applyGlobalBackgroundToFullscreenPreview = true,
-            )
-        )
-        assertTrue(on.isGlobalBackgroundActive())
-        assertTrue(on.isGlobalBackgroundVisible())
-        assertTrue(on.isPageBackgroundActive())
-        assertTrue(on.isGlobalBackgroundAppliedToChat())
-        assertTrue(on.isFullscreenPreviewBackgroundActive())
-
-        val off = on.copy(
-            advancedAppearanceSetting = on.advancedAppearanceSetting.copy(enableAdvancedAppearance = false)
-        )
-        assertFalse(off.isGlobalBackgroundActive())
-        assertFalse(off.isGlobalBackgroundVisible())
-        assertFalse(off.isPageBackgroundActive())
-        assertFalse(off.isGlobalBackgroundAppliedToChat())
-        assertFalse(off.isFullscreenPreviewBackgroundActive())
-    }
-
-    // 三个判据各自管一层：普通页 / 聊天页 / 全屏预览，不能一个开关同时决定三处
-    @Test
-    fun `ordinary page chat and fullscreen predicates stay separate`() {
-        val base = AdvancedAppearanceSetting(
-            enableAdvancedAppearance = true,
-            enableGlobalBackground = true,
-            globalBackground = "uploads/bg.webp",
-            pageSurfaceStyle = BackgroundSurfaceStyle.FROSTED,
-            applyGlobalBackgroundToChat = false,
-            applyGlobalBackgroundToFullscreenPreview = false,
-        )
-
-        // 两处「应用到」都关：普通页照旧用背景，聊天页与全屏预览不跟
-        val neither = Settings(advancedAppearanceSetting = base)
-        assertTrue(neither.isPageBackgroundActive())
-        assertFalse(neither.isGlobalBackgroundAppliedToChat())
-        assertFalse(neither.isFullscreenPreviewBackgroundActive())
-
-        val chatOnly = Settings(advancedAppearanceSetting = base.copy(applyGlobalBackgroundToChat = true))
-        assertTrue(chatOnly.isGlobalBackgroundAppliedToChat())
-        assertFalse(chatOnly.isFullscreenPreviewBackgroundActive())
-
-        val fullscreenOnly =
-            Settings(advancedAppearanceSetting = base.copy(applyGlobalBackgroundToFullscreenPreview = true))
-        assertTrue(fullscreenOnly.isFullscreenPreviewBackgroundActive())
-        assertFalse(fullscreenOnly.isGlobalBackgroundAppliedToChat())
-
-        // 不透明度为 0：可见与两处应用都算关，但「有没有配背景」这个事实不变
-        val transparent = Settings(
-            advancedAppearanceSetting = base.copy(
-                globalBackgroundOpacity = 0f,
-                applyGlobalBackgroundToChat = true,
-                applyGlobalBackgroundToFullscreenPreview = true,
-            )
-        )
-        assertTrue(transparent.isGlobalBackgroundActive())
-        assertFalse(transparent.isGlobalBackgroundVisible())
-        assertFalse(transparent.isPageBackgroundActive())
-        assertFalse(transparent.isGlobalBackgroundAppliedToChat())
-        assertFalse(transparent.isFullscreenPreviewBackgroundActive())
-    }
-
-    // 不透明表面吃掉背景图：普通页与全屏预览都不画，聊天页那条不受表面样式影响
-    @Test
-    fun `an opaque page surface hides the image on pages and fullscreen`() {
-        val settings = Settings(
-            advancedAppearanceSetting = AdvancedAppearanceSetting(
-                enableAdvancedAppearance = true,
-                enableGlobalBackground = true,
-                globalBackground = "uploads/bg.webp",
-                pageSurfaceStyle = BackgroundSurfaceStyle.OPAQUE,
-                applyGlobalBackgroundToChat = true,
-            )
-        )
-
-        assertTrue(settings.isGlobalBackgroundVisible())
-        assertFalse(settings.isPageBackgroundActive())
-        assertFalse(settings.isFullscreenPreviewBackgroundActive())
-        assertTrue(settings.isGlobalBackgroundAppliedToChat())
-        assertTrue(BackgroundSurfaceStyle.OPAQUE.opaqueMaterial)
-        assertFalse(BackgroundSurfaceStyle.OPAQUE.usesBlur)
-        assertTrue(BackgroundSurfaceStyle.LIQUID_GLASS.usesBlur)
-        assertTrue(BackgroundSurfaceStyle.ACRYLIC.usesBlur)
-        assertTrue(BackgroundSurfaceStyle.FROSTED.usesBlur)
-        assertFalse(BackgroundSurfaceStyle.TRANSLUCENT.usesBlur)
-        assertFalse(BackgroundSurfaceStyle.MICA.opaqueMaterial)
-    }
-
-    @Test
-    fun `blank background path counts as no background`() {
-        val blank = Settings(
-            advancedAppearanceSetting = AdvancedAppearanceSetting(
-                enableAdvancedAppearance = true,
-                enableGlobalBackground = true,
-                globalBackground = "   ",
-            )
-        )
-
-        assertFalse(blank.isGlobalBackgroundActive())
-        assertFalse(blank.isGlobalBackgroundVisible())
-    }
-
-    @Test
-    fun `assistant background count reads only per assistant backgrounds`() {
-        val withImage = Assistant(id = Uuid.random(), name = "image", background = "uploads/a.webp")
-        val withGradient = Assistant(id = Uuid.random(), name = "gradient", useGradientBackground = true)
-        val plain = Assistant(id = Uuid.random(), name = "plain")
-        val blankPath = Assistant(id = Uuid.random(), name = "blank", background = "  ")
-
-        val settings = Settings(assistants = listOf(withImage, withGradient, plain, blankPath))
-
-        assertEquals(2, settings.configuredAssistantBackgroundCount())
-        assertEquals(0, Settings(assistants = emptyList()).configuredAssistantBackgroundCount())
-    }
-
     @Test
     fun `display field edit keeps unrelated latest settings`() {
         // Create the page callback before another page changes the shared display settings.
@@ -442,16 +184,10 @@ class SettingsFieldsTest {
         val latest = Settings(
             displaySetting = DisplaySetting(
                 showTopBarBackground = true,
-                topBarSurfaceOpacity = .4f,
-                topBarBlurRadius = 9f,
-                inputSurfaceOpacity = .3f,
+                motionBlur = MotionBlurSetting(radius = 9),
                 assistantChatBubbleStyleOverrides = ChatBubbleStyleOverrides(cornerRadius = 20f),
                 userChatBubbleStyleOverrides = ChatBubbleStyleOverrides(borderWidth = 2f),
                 thinkingToolCardStyleOverrides = ChatBubbleStyleOverrides(blurSigma = 10f),
-            ),
-            advancedAppearanceSetting = AdvancedAppearanceSetting(
-                enableAdvancedAppearance = true,
-                pageSurfaceOpacity = .25f,
             ),
         )
 
@@ -486,56 +222,7 @@ class SettingsFieldsTest {
         assertEquals(Avatar.Image("new.gif"), updated.displaySetting.userAvatar)
     }
 
-    @Test
-    fun `appearance display inputs are clamped separately from advanced appearance`() {
-        val display = DisplaySetting(
-            topBarBlurRadius = -4f,
-            topBarSurfaceOpacity = 5f,
-            inputBlurRadius = Float.NaN,
-            inputSurfaceOpacity = 0f,
-        ).normalizedAppearanceInputs()
 
-        assertEquals(0f, display.topBarBlurRadius, 0f)
-        assertEquals(1f, display.topBarSurfaceOpacity, 0f)
-        assertEquals(12f, display.inputBlurRadius, 0f)
-        // 0..1 是合法区间：0 就是 0，不该被抬到旧的下限 .2
-        assertEquals(0f, display.inputSurfaceOpacity, 0f)
-
-        // 小透明度同理原样留着
-        val low = DisplaySetting(
-            topBarSurfaceOpacity = .12f,
-            inputSurfaceOpacity = .08f,
-        ).normalizedAppearanceInputs()
-        assertEquals(.12f, low.topBarSurfaceOpacity, 0f)
-        assertEquals(.08f, low.inputSurfaceOpacity, 0f)
-
-        // 规整只动外观输入，别的显示项原样带过
-        val untouched = DisplaySetting(userNickname = "me", displayMode = DisplayMode.LANDSCAPE)
-        assertSame(untouched, untouched.normalizedAppearanceInputs())
-    }
-
-    // 0..1 的模型下默认值本来就都在范围里：规整一遍不该改动任何一项
-    @Test
-    fun `default appearance values sit inside their ranges`() {
-        assertEquals(AdvancedAppearanceSetting(), AdvancedAppearanceSetting().normalized())
-        assertEquals(DisplaySetting(), DisplaySetting().normalizedAppearanceInputs())
-
-        val defaults = AdvancedAppearanceSetting()
-        listOf(
-            defaults.pageSurfaceOpacity,
-            defaults.overlaySurfaceOpacity,
-            defaults.navigationGlassOpacity,
-            defaults.chatDockGlassOpacity,
-            defaults.richContentSurfaceOpacity,
-            defaults.chatSuggestionSurfaceOpacity,
-            defaults.chatSuggestionBorderOpacity,
-        ).forEach { alpha -> assertTrue("$alpha 不在 0..1 里", alpha in 0f..1f) }
-
-        // 可选的材质覆盖默认是缺省：没写过的人跟对应材质走，而不是被钉死一个数值
-        assertNull(defaults.chatBubbleSurfaceOpacity)
-        assertNull(defaults.chatBubbleBlurRadius)
-        assertNull(defaults.richContentSurfaceBlurRadius)
-    }
 }
 
 private fun id(n: Int) = Uuid.parse("00000000-0000-0000-0000-%012d".format(n))
@@ -554,12 +241,6 @@ private val SAMPLE = Settings(
     appLockEnabled = true,
     appLockTimeoutMinutes = 15,
     displaySetting = DisplaySetting(userNickname = "me", displayMode = DisplayMode.LANDSCAPE),
-    advancedAppearanceSetting = AdvancedAppearanceSetting(
-        enableAdvancedAppearance = true,
-        pageSurfaceStyle = BackgroundSurfaceStyle.MICA,
-        overlaySurfaceStyle = BackgroundSurfaceStyle.ACRYLIC,
-        chatParagraphSpacingRatio = .8f,
-    ),
     networkSetting = NetworkSetting(
         userAgent = "agent",
         retryMaxCount = 5,
@@ -653,7 +334,6 @@ private val STORED_KEYS = setOf(
     "custom_themes",
     "palette",
     "display_setting",
-    "advanced_appearance_setting",
     "network_setting",
     "developer_mode",
     "app_lock_enabled",

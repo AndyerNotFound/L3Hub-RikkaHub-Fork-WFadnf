@@ -6,8 +6,8 @@ import kotlinx.serialization.Serializable
 /**
  * 消息样式：气泡背景的三档选择。
  *
- * 与全局「背景特效」（BLUR / GLASS / OFF）正交：样式决定气泡的
- * 底色 / 边框 / 文字 / 圆角等视觉参数，特效决定是否在上面叠加模糊与玻璃。
+ * 样式决定气泡的底色 / 边框 / 文字 / 圆角等视觉参数，与主题、调色板正交。
+ * 三档之外的角色参数见 [ChatBubbleStyleOverrides]。
  */
 @Serializable
 enum class ChatMessageBackgroundStyle {

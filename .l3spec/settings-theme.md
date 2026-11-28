@@ -1,5 +1,9 @@
 # 设置页结构与设计 token 规格（Android Compose → HTML 原型）
 
+> **历史原型规格提示：高级外观设置已下线。** 本文提到的高级外观入口、`advancedMaterial`、背景采样与 V6 运行时属于旧设计；
+> 当前代码已删除这些数据接线，并由 V7 在升级/旧备份恢复时清除废弃偏好。不要根据这些历史段落重新接回旧模型或特效字段。
+> 普通主题、调色板、现有消息样式、`showTopBarBackground` 与助手配置仍保留；用户图片/附件不在清理范围。
+
 只读代码整理，未修改任何仓库文件。基准路径 `app/src/main/java/me/rerere/rikkahub/`。
 所有中文取自 `app/src/main/res/values-zh/strings.xml` 的 `<string>` 原文。
 

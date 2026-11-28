@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.chat
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import android.graphics.Rect
 import androidx.compose.foundation.layout.Arrangement
@@ -54,10 +55,7 @@ import me.rerere.rikkahub.data.model.Folder
 import me.rerere.rikkahub.ui.components.ai.ChatCapsule
 import me.rerere.rikkahub.ui.components.ai.ChatCapsuleDivider
 import me.rerere.rikkahub.ui.components.ai.chatCapsuleSurface
-import me.rerere.rikkahub.ui.components.ui.AppearanceMaterial
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
-import me.rerere.rikkahub.ui.components.ui.advancedMaterial
-import me.rerere.rikkahub.ui.components.ui.topBarMaterial
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
@@ -93,25 +91,18 @@ internal fun TopBar(
     detailsExpanded: Boolean,
     onToggleDetails: () -> Unit,
 ) {
-    val material = settings.advancedAppearanceSetting.topBarMaterial(settings.displaySetting)
-    val backdropMaterial = material?.takeIf { settings.displaySetting.showTopBarBackground }
-    // 非实色顶栏已绘制整层背景时，组件只绘制轮廓，避免重复取样和叠色。
-    val shareBackdrop = backdropMaterial?.style?.opaqueMaterial == false
+    // 顶栏底色：朴素外观下就是这一层实色，开不开由「显示顶栏背景」决定。
+    // 整条顶栏和里面的胶囊用同一个主题槽位（surfaceContainerLow），
+    // 之前容器用 surfaceContainer，胶囊比底更浅，看起来像两套东西。
+    val topBarModifier = if (settings.displaySetting.showTopBarBackground) {
+        Modifier.background(MaterialTheme.colorScheme.surfaceContainerLow, RectangleShape)
+    } else {
+        Modifier
+    }
 
     TopAppBar(
-        // 底色交给材质层，容器本身保持透明，否则会和底叠成两倍浓度
-        modifier = if (backdropMaterial != null) {
-            Modifier.advancedMaterial(
-                shape = RectangleShape,
-                // 整条顶栏和里面的胶囊用同一个主题槽位（surfaceContainerLow），
-                // 之前容器用 surfaceContainer，胶囊比底更浅，看起来像两套东西
-                base = MaterialTheme.colorScheme.surfaceContainerLow,
-                material = backdropMaterial,
-                hazeState = hazeState,
-            )
-        } else {
-            Modifier
-        },
+        // 底色由上面那层画，容器本身保持透明，否则会和底叠成两倍浓度
+        modifier = topBarModifier,
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = Color.Transparent,
             scrolledContainerColor = Color.Transparent,
@@ -129,8 +120,6 @@ internal fun TopBar(
                     onCreateFolder = onCreateFolder,
                     onShowModelPicker = onShowModelPicker,
                     hazeState = hazeState,
-                    material = material,
-                    outlineOnly = shareBackdrop,
                     modifier = Modifier.padding(start = 2.dp),
                 )
             }
@@ -158,9 +147,7 @@ internal fun TopBar(
                             .chatCapsuleSurface(
                                 shape = navShape,
                                 base = navColor,
-                                material = material,
                                 hazeState = hazeState,
-                                outlineOnly = shareBackdrop,
                             ),
                         shape = navShape,
                         color = Color.Transparent,
@@ -192,9 +179,6 @@ internal fun TopBar(
                 // 顶栏两头的胶囊才是同一套东西
                 ChatCapsule(
                     hazeState = hazeState,
-                    material = material,
-                    readableFloor = 0f,
-                    outlineOnly = shareBackdrop,
                     modifier = Modifier.height(TopBarButtonSize),
                 ) {
                     // 详情和任务树在横屏是右栏的标签页，顶栏不再重复两个入口
@@ -261,8 +245,6 @@ private fun ChatModelFolderPill(
     onCreateFolder: () -> Unit,
     onShowModelPicker: () -> Unit,
     hazeState: HazeState?,
-    material: AppearanceMaterial?,
-    outlineOnly: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val folder = folders.firstOrNull { it.id == folderId }
@@ -274,9 +256,6 @@ private fun ChatModelFolderPill(
 
     ChatCapsule(
         hazeState = hazeState,
-        material = material,
-        readableFloor = 0f,
-        outlineOnly = outlineOnly,
         modifier = modifier.height(TopBarButtonSize),
     ) {
         Box {

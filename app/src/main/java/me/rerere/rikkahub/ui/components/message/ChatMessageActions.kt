@@ -343,7 +343,7 @@ private fun ChatMessageActionList(
     val actions = buildList {
         add(MessageSheetAction(HugeIcons.TextSelection, stringResource(R.string.select_and_copy), onClick = onSelectAndCopy))
         if (hasTextContent) {
-            add(MessageSheetAction(HugeIcons.WebDesign01, stringResource(R.string.aa_message_preview), onClick = onWebViewPreview))
+            add(MessageSheetAction(HugeIcons.WebDesign01, stringResource(R.string.message_preview), onClick = onWebViewPreview))
         }
         add(MessageSheetAction(HugeIcons.Edit01, stringResource(R.string.edit), onClick = onEdit))
         add(MessageSheetAction(HugeIcons.Share04, stringResource(R.string.share), onClick = onShare))

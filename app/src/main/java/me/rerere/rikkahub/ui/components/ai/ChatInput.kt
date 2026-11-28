@@ -80,8 +80,6 @@ import me.rerere.rikkahub.ui.components.message.ConversationTodoCard
 import me.rerere.rikkahub.ui.components.message.LocalConversationStatusInSidePanel
 import me.rerere.rikkahub.ui.components.message.TodoReminderUi
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
-import me.rerere.rikkahub.ui.components.ui.advancedMaterial
-import me.rerere.rikkahub.ui.components.ui.composerMaterial
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionRecordAudio
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
@@ -193,11 +191,6 @@ fun ChatInput(
 ) {
     val toaster = LocalToaster.current
     val containerColor = LocalUiSlots.current.inputBar
-    // 输入卡片的材质：null = 高级外观关着（或没选材质也没强制玻璃），这时只有一道实色底。
-    // composerMaterial 内部已经过了 enableAdvancedAppearance；旧的全特效运行时已经退役，
-    // 只有 applyToComposer 把玻璃档打开时才强制 liquid（和上游 chatComposerMaterial 一致）。
-    val composerStyle = settings.advancedAppearanceSetting.composerMaterial(settings.displaySetting)
-
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
@@ -601,34 +594,14 @@ fun ChatInput(
                                 }
                                 // 贴底底板不要投影：它不是一个浮起来的物体，
                                 // 而是页面的一部分。留着投影会在底边压出一道灰边。
-                                .clip(containerShape)
-                                .then(
-                                    if (composerStyle != null) {
-                                        Modifier.advancedMaterial(
-                                            shape = containerShape,
-                                            base = containerColor,
-                                            material = composerStyle,
-                                            hazeState = hazeState,
-                                            // 输入框里是要打的字，着色不能薄到认不出边界
-                                            readableFloor = .35f,
-                                        )
-                                    } else {
-                                        // 没开高级外观：底由下面 Surface 的 color 铺，这里不加第二层
-                                        Modifier
-                                    }
-                                ),
+                                .clip(containerShape),
                             shape = containerShape,
                             tonalElevation = 0.dp,
                             // 贴底底板不要描边：左右和底边都贴屏幕边缘，
                             // 一圈线会在边缘画出三条多余的接缝。分界靠上方圆角与底色差表达。
                             border = null,
-                            // 底板自己铺色。高级外观开着时底色交给材质层（advancedMaterial），
-                            // 这里保持透明。
-                            color = if (composerStyle != null) {
-                                Color.Transparent
-                            } else {
-                                containerColor
-                            },
+                            // 底板自己铺色：朴素外观下只有这一层实色底。
+                            color = containerColor,
                         ) {
                             Column(
                                 modifier = Modifier

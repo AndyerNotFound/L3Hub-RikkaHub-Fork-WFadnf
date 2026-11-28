@@ -42,7 +42,6 @@ data class Settings(
     val palette: PaletteSetting = PaletteSetting(),
     val developerMode: Boolean = false,
     val displaySetting: DisplaySetting = DisplaySetting(),
-    val advancedAppearanceSetting: AdvancedAppearanceSetting = AdvancedAppearanceSetting(),
     val networkSetting: NetworkSetting = NetworkSetting(),
     val favoriteModels: List<Uuid> = emptyList(),
     val chatModelId: Uuid = Uuid.random(),
@@ -163,18 +162,6 @@ enum class ChatFontFamily {
 
     @SerialName("custom")
     CUSTOM,
-}
-
-@Serializable
-enum class BackgroundEffectType {
-    @SerialName("off")
-    OFF,
-
-    @SerialName("blur")
-    BLUR,
-
-    @SerialName("glass")
-    GLASS,
 }
 
 @Serializable
@@ -445,25 +432,6 @@ data class DisplaySetting(
     val enableLatexRendering: Boolean = true,
     val enableQuoteHighlight: Boolean = false,
     val showTopBarBackground: Boolean = false,
-    val enableTopBarBlur: Boolean = true,
-    val topBarBlurRadius: Float = 20f,
-    val topBarSurfaceOpacity: Float = .65f,
-    val inputBlurRadius: Float = 12f,
-    val inputSurfaceOpacity: Float = .55f,
-    /**
-     * 旧全局特效开关「已经搬过一次」的标记，默认 true：默认状态下没有要搬的东西，当前界面也不读它。
-     *
-     * 只有 V6 迁移看它，而且只看盘上原始 JSON 里这个键是不是 true
-     * （[me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV6Migration]）。落盘开着 `encodeDefaults`，
-     * 所以它一旦被读进模型再写回去，文件里就一定有一个真的布尔 `true`。用户之后自己关掉高级外观，
-     * 从这之后的备份恢复时，旧版的 `enableBlurEffect` 还在、这个标记也在，迁移就不会把特效重新打开。
-     *
-     * 仅供旧备份迁移和导出兼容；`enableBlurEffect` / `backgroundEffectType` / `blurOpacity` /
-     * `glassOpacity` 同理只留给迁移与降级读。
-     */
-    val legacyEffectsMigrated: Boolean = true,
-    val enableBlurEffect: Boolean = false,
-    val backgroundEffectType: BackgroundEffectType = BackgroundEffectType.BLUR,
     val inputLayoutStyle: InputLayoutStyle = InputLayoutStyle.DOUBLE,
     val showToolCallOutput: Boolean = true,
     val uiCornerRadius: Int = 24,
@@ -471,8 +439,6 @@ data class DisplaySetting(
     val inputPadding: Int = 8,
     // 全宽组件：气泡/卡片撑满父宽、圆角收成直角、贴边组件去掉左右内边距
     val fullWidthComponents: Boolean = false,
-    val blurOpacity: Float = 0.45f,
-    val glassOpacity: Float = 0.35f,
     // 消息样式：气泡背景三档（默认 / 毛玻璃 / 实色），参数按角色覆盖
     val chatMessageBackgroundStyle: ChatMessageBackgroundStyle = ChatMessageBackgroundStyle.DEFAULT,
     val userChatBubbleStyleOverrides: ChatBubbleStyleOverrides = ChatBubbleStyleOverrides(),

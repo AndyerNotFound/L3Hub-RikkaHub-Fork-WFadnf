@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="message_preview">Message preview</string>
+    <string name="message_preview_truncated">Preview shortened. Read the full message in the chat.</string>
+    <string name="message_preview_missing">Preview expired. Open it again from the message.</string>
+    <string name="message_preview_failed">Could not open the message preview.</string>
+</resources>

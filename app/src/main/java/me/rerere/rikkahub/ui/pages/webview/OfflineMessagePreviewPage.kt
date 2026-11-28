@@ -23,7 +23,6 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.OfflinePreviewTheme
 import me.rerere.rikkahub.ui.components.richtext.buildOfflinePreviewHtml
-import me.rerere.rikkahub.ui.navigation.LocalRouteBackdropVisible
 import me.rerere.rikkahub.ui.navigation.appearancePageContainerColor
 import me.rerere.rikkahub.ui.style.TopAppBar
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
@@ -36,11 +35,10 @@ internal fun OfflineMessagePreviewPage(contentId: String) {
     val cacheDir = LocalContext.current.cacheDir
     val scheme = MaterialTheme.colorScheme
     val dark = LocalDarkMode.current
-    val backdrop = LocalRouteBackdropVisible.current
-    val truncated = stringResource(R.string.aa_preview_truncated)
-    val missing = stringResource(R.string.aa_preview_missing)
+    val truncated = stringResource(R.string.message_preview_truncated)
+    val missing = stringResource(R.string.message_preview_missing)
     val theme = OfflinePreviewTheme(
-        background = if (backdrop) "transparent" else scheme.background.toCssHex(),
+        background = scheme.background.toCssHex(),
         onBackground = scheme.onBackground.toCssHex(),
         surface = scheme.surfaceContainer.toCssHex(),
         onSurfaceVariant = scheme.onSurfaceVariant.toCssHex(),
@@ -61,7 +59,7 @@ internal fun OfflineMessagePreviewPage(contentId: String) {
     Scaffold(
         containerColor = appearancePageContainerColor(),
         topBar = {
-            TopAppBar(title = { Text(stringResource(R.string.aa_message_preview)) }, navigationIcon = { BackButton() })
+            TopAppBar(title = { Text(stringResource(R.string.message_preview)) }, navigationIcon = { BackButton() })
         },
     ) { padding ->
         if (html != null) {

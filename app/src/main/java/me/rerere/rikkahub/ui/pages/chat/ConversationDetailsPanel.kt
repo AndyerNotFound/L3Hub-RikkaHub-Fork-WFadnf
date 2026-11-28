@@ -62,8 +62,6 @@ import me.rerere.rikkahub.data.model.InjectionPosition
 import me.rerere.rikkahub.ui.components.ai.label
 import me.rerere.rikkahub.ui.components.ai.workspacePermissionLabelRes
 import me.rerere.rikkahub.ui.components.ui.JsonTree
-import me.rerere.rikkahub.ui.components.ui.advancedMaterial
-import me.rerere.rikkahub.ui.components.ui.overlayMaterial
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.modifier.motionBlurOnToggle
@@ -150,23 +148,17 @@ internal fun ConversationDetailsPanel(
         contextTokens?.formatNumber(binaryUnits) ?: "—"
     }
     val previewInjections = (previewState as? RequestPreviewUiState.Ready)?.preview?.injections
-    val material = settings.advancedAppearanceSetting.takeIf { it.enableAdvancedAppearance && !embedded }?.overlayMaterial()
     val scheme = MaterialTheme.colorScheme
     val base = scheme.surfaceContainerLow
-    val panel = when {
-        embedded -> Modifier
-        material != null -> Modifier.advancedMaterial(DetailsPanelShape, base, material, hazeState, readableFloor = .62f)
-        else -> Modifier
-    }
 
     Surface(
         modifier = if (embedded) {
             modifier.fillMaxSize()
         } else {
-            modifier.fillMaxWidth().padding(horizontal = 12.dp).then(panel)
+            modifier.fillMaxWidth().padding(horizontal = 12.dp)
         },
         shape = if (embedded) RectangleShape else DetailsPanelShape,
-        color = if (embedded || material != null) Color.Transparent else base,
+        color = if (embedded) Color.Transparent else base,
         contentColor = scheme.onSurface,
     ) {
         Column(

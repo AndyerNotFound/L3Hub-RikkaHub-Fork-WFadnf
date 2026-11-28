@@ -40,6 +40,7 @@ import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV3Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV4Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV5Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV6Migration
+import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV7Migration
 import me.rerere.rikkahub.data.model.Assistant
 import java.io.File
 import kotlin.time.Duration.Companion.milliseconds
@@ -81,6 +82,8 @@ private fun createSettingsDataStore(context: Context): DataStore<Preferences> {
             PreferenceStoreV4Migration(),
             PreferenceStoreV5Migration(),
             PreferenceStoreV6Migration(),
+            // V7：高级外观整份下线，顺手删掉 V6 刚写下去的那份 JSON
+            PreferenceStoreV7Migration(),
         ),
         produceFile = { file },
     )
@@ -108,6 +111,8 @@ class SettingsStore internal constructor(
         val CUSTOM_THEMES = stringPreferencesKey("custom_themes")
         val PALETTE = stringPreferencesKey("palette")
         val DISPLAY_SETTING = stringPreferencesKey("display_setting")
+        // 只留给迁移用：V7 读它来判断盘上还有没有残留，读完就删。没有业务字段再读写这个 key，
+        // 新装与升级后都不会再写它。
         val ADVANCED_APPEARANCE_SETTING = stringPreferencesKey("advanced_appearance_setting")
         val NETWORK_SETTING = stringPreferencesKey("network_setting")
         val DEVELOPER_MODE = booleanPreferencesKey("developer_mode")

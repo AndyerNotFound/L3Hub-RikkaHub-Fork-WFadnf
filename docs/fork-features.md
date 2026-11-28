@@ -117,20 +117,23 @@
 | 全局应用 | 同上 | `fontApplyGlobal` 打开后用自定义字体替换全局 typography；终端与默认字体档禁用 |
 | 字号缩放 | 设置 → 偏好设置 → 界面 → 字号 | `fontSizeRatio` 滑块，带输入框与实时预览 |
 
-### 2.4 外观特效与玻璃（高级外观）
+### 2.4 朴素外观与已退役数据清理
 
-| 功能 | 入口 | 说明 |
+「高级外观设置」页面已移除；其数据模型、持久化字段、背景加载/取色/监听和材质接线也已下线。
+旧配置不再改变配色、聊天行距、背景、空态或建议回复布局，统一使用普通主题与朴素表面。
+
+| 功能 | 触发位置 | 说明 |
 | --- | --- | --- |
-| 背景特效三档（已退役） | 原「设置 → 偏好设置 → 通用 → 背景特效」，现在没有这个界面 | `OFF` / `BLUR` / `GLASS` 的界面与运行时一并删除；`DisplaySetting.enableBlurEffect` / `backgroundEffectType` / `blurOpacity`（默认 .45）/ `glassOpacity`（默认 .35）仍然保留，只给降级版本、备份导出导入和 V6 迁移读 |
-| 外观特效唯一入口 | 设置 → 偏好设置 → 高级外观设置 | 副标题「背景、材质和聊天样式」。关掉总开关就是实色底：页卡、列表项、气泡、输入区、顶栏、胶囊、配额条、抽屉、浮层都不采样 |
-| V6 迁移 | 升级、备份恢复 | 旧开关为真且类型 blur 或 glass 时开高级外观并落到磨砂 12dp / 液态玻璃 16dp，浓度取旧滑杆的有效值（坏值用旧档默认）；高级原本开着不覆盖；OFF 不启用；`legacyEffectsMigrated` 让备份恢复不会二次重开 |
-| 面材质链路 | — | `Modifier.advancedMaterial` 一套：实色 / 磨砂 / 液态玻璃 / 亚克力 / 云母，模糊半径按 API 与实时刻收口（26–30 无可实时模糊、31–32 最多 12dp、33+ 到 40dp，折射另算） |
-| 可读性下限 | — | `advancedMaterial(readableFloor=…)`：顶栏胶囊、配额条、会话详情、工具详情 .62，抽屉 .65，浮在正文上的小控件默认 .6；下限之上仍跟该材质的浓度滑杆线性变化 |
-| 液态玻璃样式 | 高级外观设置 → 液态玻璃 | `SALT`（默认，Salt 光学样式）或 `MATERIAL3`（RikkaHub 原版 Haze Material3：固定 depth .5、模糊 16dp、tint alpha .3，不读 Salt 的预设与光学滑杆，按应用主题取响应参数） |
-| 消息样式 | 高级外观设置 → 按角色设置气泡外观 | 内容并入高级外观页；旧路由 `Screen.SettingPreferencesMessageStyle` 仍可直达同一块设置，字段继续存在 `DisplaySetting` |
-| 气泡与思考链 | — | 消息样式「默认」时走所选高级气泡材质，「实色」时不采样；定制思考链跟富内容材质走；助手正文气泡默认不显示，可在 界面偏好 打开 |
-| 多色网格背景 | 助手背景 / 聊天背景 | 四个光斑（蓝 / 青 / 紫品红 / 橙琥珀）加 31 秒色相慢时钟，来回摆动 ±10~18°；深色压明度与 alpha、浅色彩度封顶 0.6；光斑渐隐改用同色 alpha=0，边缘不发灰 |
-| AMOLED 纯黑 | 设置 → 主题 | 上游功能；L3Hub 让 AMOLED 压黑在 `UiSlots` 位置层的优先级高于调色板底色槽 |
+| V7 自动清理 | 更新后首次读取设置 | 删除 DataStore 的 `advanced_appearance_setting`，并定向清除 `display_setting` 内的旧特效字段；不是删除聊天数据库，也不调整 Room schema 版本 |
+| 旧显示字段 | 同上 | 清理 `enableTopBarBlur`、`topBarBlurRadius`、`topBarSurfaceOpacity`、`inputBlurRadius`、`inputSurfaceOpacity`、`legacyEffectsMigrated`、`enableBlurEffect`、`backgroundEffectType`、`blurOpacity`、`glassOpacity`；其余字段不在删除名单内 |
+| 旧备份恢复 | 设置 JSON 导入 | 使用同一清理规则去掉 `advancedAppearanceSetting` 与上述显示字段，不再按 V6 规则生成高级外观配置；后续存储和导出也不再写回 |
+| 保留范围 | 普通主题、显示与助手配置 | 动态配色、主题、调色板、AMOLED、字体、`showTopBarBackground`、现有消息样式及角色覆盖项、助手配置保留；`motionBlur` 不属于本轮删除范围 |
+| 文件安全 | 无文件删除 | 不删除背景原图、上传文件或历史附件，避免与聊天共用的 `upload/` 被误清；旧背景图可能仍留在文件管理与备份中 |
+| 实现 | 数据层 | Java 定义精确清理规则，Kotlin 薄适配接入 DataStore 挂起迁移；没有新增界面或 XML 布局 |
+| AMOLED 纯黑 | 设置 → 主题 | AMOLED 压黑在 `UiSlots` 位置层的优先级仍高于调色板底色槽 |
+
+V6 的特效搬迁仅保留作历史升级链路；从更旧版本升级会先经过 V6，再由 V7 清理。
+本轮未更改应用版本号，也没有在 Termux 编译或安装 APK；测试与编译结果以对应提交的 CI 为准。
 
 ### 2.5 动态模糊与动效
 

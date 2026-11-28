@@ -1,14 +1,11 @@
 package me.rerere.rikkahub.ui.components.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -28,13 +25,9 @@ import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Download01
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.data.datastore.isFullscreenPreviewBackgroundActive
 import me.rerere.rikkahub.data.files.FilesManager
-import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.style.IconButton
-import me.rerere.rikkahub.ui.theme.AppearancePreviewBackdrop
-import me.rerere.rikkahub.ui.theme.LocalAppearanceImage
 import me.rerere.ui.components.AnimatedDialog
 import me.rerere.ui.toast.ToastType
 import org.koin.compose.koinInject
@@ -53,9 +46,6 @@ fun ImagePreviewDialog(
     val state = rememberZoomablePagerState(initialPage = initialPage) { images.size }
     val toaster = LocalToaster.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val settings = LocalSettings.current
-    val appearance = settings.advancedAppearanceSetting
-    val background = if (settings.isFullscreenPreviewBackgroundActive()) LocalAppearanceImage.current?.image else null
     AnimatedDialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(
@@ -64,9 +54,6 @@ fun ImagePreviewDialog(
         )
     ) {
         Box {
-            if (background != null) {
-                AppearancePreviewBackdrop(background, appearance, Modifier.matchParentSize())
-            }
             ImagePager(
                 modifier = Modifier.fillMaxSize(),
                 pagerState = state,
@@ -80,10 +67,7 @@ fun ImagePreviewDialog(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .zIndex(1f)
-                    .padding(8.dp)
-                    .then(if (background == null) Modifier else {
-                        Modifier.navigationBarsPadding().background(Color.Black.copy(alpha = .62f), CircleShape)
-                    }),
+                    .padding(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 IconButton(

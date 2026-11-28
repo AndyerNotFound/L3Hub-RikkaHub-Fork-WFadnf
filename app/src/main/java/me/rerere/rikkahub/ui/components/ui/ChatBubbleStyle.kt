@@ -4,9 +4,6 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import me.rerere.rikkahub.data.datastore.AdvancedAppearanceSetting
-import me.rerere.rikkahub.data.datastore.BackgroundSurfaceStyle
-import me.rerere.rikkahub.data.datastore.ChatBubbleStyle
 import me.rerere.rikkahub.data.datastore.ChatBubbleStyleOverrides
 import me.rerere.rikkahub.data.datastore.ChatBubbleStyleTarget
 import me.rerere.rikkahub.data.datastore.DisplaySetting

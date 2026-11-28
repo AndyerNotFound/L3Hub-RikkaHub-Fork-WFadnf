@@ -62,8 +62,6 @@ import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.Download04
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
-import me.rerere.rikkahub.data.datastore.normalizedChatParagraphSpacingRatio
-import me.rerere.rikkahub.data.datastore.normalizedChatTextLineHeightRatio
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalWorkspaceId
@@ -136,21 +134,6 @@ private fun MarkdownPreview() {
 
 internal val LocalChatMarkdownLayout = compositionLocalOf { false }
 
-@Composable
-internal fun TextStyle.withAdvancedChatLineHeight(): TextStyle {
-    val appearance = LocalSettings.current.advancedAppearanceSetting
-    if (!appearance.enableAdvancedAppearance || !fontSize.isSp) return this
-    return copy(lineHeight = fontSize * appearance.normalizedChatTextLineHeightRatio())
-}
-
-@Composable
-internal fun advancedChatParagraphGap(fallback: Dp): Dp {
-    val appearance = LocalSettings.current.advancedAppearanceSetting
-    val size = LocalTextStyle.current.fontSize
-    if (!appearance.enableAdvancedAppearance || !size.isSp) return fallback
-    return with(LocalDensity.current) { size.toDp() } * appearance.normalizedChatParagraphSpacingRatio()
-}
-
 /**
  * 应用内使用的 Markdown：在通用的 [Markdown] 组件上接入代码高亮、图片预览、LaTeX 渲染、
  * 表格工具栏和搜索引用角标这些和应用相关的能力。
@@ -169,16 +152,13 @@ fun MarkdownBlock(
     val enableLatexRendering = LocalSettings.current.displaySetting.enableLatexRendering
     val enableQuoteHighlight = LocalSettings.current.displaySetting.enableQuoteHighlight
     val chatLayout = LocalChatMarkdownLayout.current || renderMode == MarkdownRenderMode.USER_MESSAGE
-    val appearance = LocalSettings.current.advancedAppearanceSetting
-    val textStyle = if (chatLayout) LocalTextStyle.current.merge(style).withAdvancedChatLineHeight() else style
+    val textStyle = if (chatLayout) LocalTextStyle.current.merge(style) else style
     val fontSize = LocalTextStyle.current.merge(textStyle).fontSize
     val density = LocalDensity.current
     val quoteColor = MaterialTheme.colorScheme.tertiary
     val defaultTheme = MaterialMarkdownDefaults.theme(textStyle)
     val spacing = if (fontSize.isSp) {
-        with(density) { fontSize.toDp() } * if (chatLayout && appearance.enableAdvancedAppearance) {
-            appearance.normalizedChatParagraphSpacingRatio()
-        } else 1f
+        with(density) { fontSize.toDp() }
     } else defaultTheme.blockSpacing
     val theme = remember(defaultTheme, spacing, enableQuoteHighlight, quoteColor) {
         defaultTheme.copy(

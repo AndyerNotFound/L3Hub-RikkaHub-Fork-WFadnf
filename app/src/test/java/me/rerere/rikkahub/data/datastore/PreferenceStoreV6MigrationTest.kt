@@ -3,9 +3,6 @@ package me.rerere.rikkahub.data.datastore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
@@ -13,7 +10,6 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.floatOrNull
 import kotlinx.serialization.json.jsonObject
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV6Migration
-import me.rerere.rikkahub.data.datastore.migration.SettingsJsonMigrator
 import me.rerere.rikkahub.utils.JsonInstant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -22,10 +18,15 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * V6：旧的全局特效开关搬进高级外观。
+ * V6：旧的全局特效开关搬进高级外观——历史行为，语义一个字没改。
  *
- * 新加的高级字段（`chatDockSurfaceStyle` / `*SurfaceBlurRadius` 等）
- * 一律按落盘的 JSON 断言：迁移写的就是这些键，字段名对不对得上由模型那边保证。
+ * 高级外观那份模型已经整份下线，所以这里不再把 JSON 解回类里，一律按落盘 JSON 断言：
+ * V6 写下去的就是这些键，键名对不对得上由 [me.rerere.rikkahub.data.datastore.migration.RetiredAppearanceCleanup]
+ * 的黑名单和 V7 的清理测试保证。
+ *
+ * 备份那条路（`SettingsJsonMigrator`）不再跟着跑这套生成逻辑，它只做 V7 的清理：
+ * 那边的判断由 `PreferenceStoreV7MigrationTest` 盯着。两条路的分工是刻意的——
+ * 备份恢复要的是"别把退役字段带回来"，不是"重建一遍当年搬过去的外观"。
  */
 class PreferenceStoreV6MigrationTest {
     private val migration = PreferenceStoreV6Migration()
@@ -51,9 +52,6 @@ class PreferenceStoreV6MigrationTest {
 
     private fun Preferences.appearanceDoc(): JsonObject =
         JsonInstant.parseToJsonElement(this[SettingsStore.ADVANCED_APPEARANCE_SETTING]!!).jsonObject
-
-    private fun Preferences.appearance(): AdvancedAppearanceSetting =
-        JsonInstant.decodeFromString(this[SettingsStore.ADVANCED_APPEARANCE_SETTING]!!)
 
     private fun JsonObject.float(key: String): Float? = (this[key] as? JsonPrimitive)?.floatOrNull
 
@@ -99,20 +97,6 @@ class PreferenceStoreV6MigrationTest {
         // 旧全局特效直接覆盖了浮动 Dock，迁移后由高级 Dock 材质继续承接
         assertTrue(doc.flag("enableChatDockGlass") == true)
         assertTrue(doc.flag("enableNavigationGlass") == true)
-
-        // 落盘名要能解回模型的枚举
-        val appearance = result.appearance()
-        assertTrue(appearance.enableAdvancedAppearance)
-        assertEquals(BackgroundSurfaceStyle.FROSTED, appearance.pageSurfaceStyle)
-        assertEquals(BackgroundSurfaceStyle.FROSTED, appearance.overlaySurfaceStyle)
-        assertEquals(BackgroundSurfaceStyle.FROSTED, appearance.navigationSurfaceStyle)
-        assertEquals(BackgroundSurfaceStyle.FROSTED, appearance.chatDockSurfaceStyle)
-        assertEquals(ChatBubbleStyle.FROSTED, appearance.chatBubbleStyle)
-        assertEquals(RichContentStyle.TRANSLUCENT, appearance.richContentStyle)
-        assertEquals(12f, appearance.pageSurfaceBlurRadius, 0f)
-        assertEquals(12f, appearance.overlaySurfaceBlurRadius, 0f)
-        assertEquals(.45f, appearance.chatBubbleSurfaceOpacity!!, 0f)
-        assertEquals(12f, appearance.chatBubbleBlurRadius!!, 0f)
     }
 
     // 旧 glass 那一档：液态玻璃 16dp，透明度用旧 glassOpacity；不强制选液态玻璃预设
@@ -148,18 +132,6 @@ class PreferenceStoreV6MigrationTest {
         assertFalse("liquidGlass" in doc)
         assertTrue(doc.flag("enableChatDockGlass") == true)
         assertTrue(doc.flag("enableNavigationGlass") == true)
-
-        // 液态玻璃这一档同样要能解回模型的枚举
-        val appearance = migrated(display = legacyGlass).appearance()
-        assertEquals(BackgroundSurfaceStyle.LIQUID_GLASS, appearance.pageSurfaceStyle)
-        assertEquals(BackgroundSurfaceStyle.LIQUID_GLASS, appearance.overlaySurfaceStyle)
-        assertEquals(BackgroundSurfaceStyle.LIQUID_GLASS, appearance.navigationSurfaceStyle)
-        assertEquals(BackgroundSurfaceStyle.LIQUID_GLASS, appearance.chatDockSurfaceStyle)
-        assertEquals(ChatBubbleStyle.LIQUID_GLASS, appearance.chatBubbleStyle)
-        assertEquals(RichContentStyle.LIQUID_GLASS, appearance.richContentStyle)
-        assertEquals(16f, appearance.pageLiquidGlassBlurRadius, 0f)
-        assertEquals(16f, appearance.chatBubbleBlurRadius!!, 0f)
-        assertEquals(.35f, appearance.chatDockGlassOpacity, 0f)
     }
 
     // 输入区与顶栏继承同一档；但「要不要显示背景」这类功能开关不在这里开
@@ -183,7 +155,7 @@ class PreferenceStoreV6MigrationTest {
         assertFalse("assistantChatBubbleStyleOverrides" in blur)
         assertFalse("thinkingToolCardStyleOverrides" in blur)
 
-        // 旧字段留着：备份、降级都还要读
+        // 旧字段留着：V6 自己不删，紧接着由 V7 清掉（见 PreferenceStoreV7MigrationTest）
         assertEquals(JsonPrimitive(true), blur["enableBlurEffect"])
         assertEquals("blur", blur.text("backgroundEffectType"))
         assertEquals(.45f, blur.float("blurOpacity"))
@@ -265,24 +237,21 @@ class PreferenceStoreV6MigrationTest {
         assertEquals(.45f, nullValue.appearanceDoc().float("pageSurfaceOpacity"))
     }
 
-    // 合法的小透明度要原样落地，归一化也不能把它抬到别的档位去
+    // 合法的小透明度原样落地：0..1 里的值不该被抬到旧的下限去
     @Test
-    fun `legal small alpha survives normalization`() = runTest {
-        val appearance = migrated(
+    fun `legal small alpha is written as is`() = runTest {
+        val result = migrated(
             display = """{"enableBlurEffect":true,"backgroundEffectType":"blur","blurOpacity":0.3}"""
-        ).appearance()
+        )
+        val appearance = result.appearanceDoc()
 
-        assertEquals(.3f, appearance.pageSurfaceOpacity, 0f)
-        assertEquals(.3f, appearance.chatBubbleSurfaceOpacity!!, 0f)
-
-        val normalized = appearance.normalized()
-        assertEquals(.3f, normalized.pageSurfaceOpacity, 0f)
-        assertEquals(.3f, normalized.overlaySurfaceOpacity, 0f)
-        assertEquals(.3f, normalized.navigationGlassOpacity, 0f)
-        assertEquals(.3f, normalized.chatDockGlassOpacity, 0f)
-        assertEquals(.3f, normalized.chatBubbleSurfaceOpacity!!, 0f)
-        assertEquals(.3f, normalized.richContentSurfaceOpacity, 0f)
-        assertEquals(12f, normalized.pageSurfaceBlurRadius, 0f)
+        assertEquals(.3f, appearance.float("pageSurfaceOpacity"))
+        assertEquals(.3f, appearance.float("overlaySurfaceOpacity"))
+        assertEquals(.3f, appearance.float("navigationGlassOpacity"))
+        assertEquals(.3f, appearance.float("chatDockGlassOpacity"))
+        assertEquals(.3f, appearance.float("chatBubbleSurfaceOpacity"))
+        assertEquals(.3f, appearance.float("richContentSurfaceOpacity"))
+        assertEquals(12f, appearance.float("pageSurfaceBlurRadius"))
     }
 
     // 旧版把这些类型当成「没有特效」，迁移后也不该凭空开出一套材质
@@ -381,33 +350,6 @@ class PreferenceStoreV6MigrationTest {
         assertEquals(.45f, display.float("inputSurfaceOpacity"))
         assertEquals(12f, display.float("topBarBlurRadius"))
         assertEquals(.45f, display.float("topBarSurfaceOpacity"))
-
-        // 备份那条路走同一份文档：结果必须与 DataStore 那条路一致
-        val backupInput = JsonObject(
-            mapOf(
-                "displaySetting" to JsonInstant.parseToJsonElement(legacyBlur),
-                "advancedAppearanceSetting" to JsonInstant.parseToJsonElement(advanced),
-            )
-        )
-        val fromBackup = JsonInstant.parseToJsonElement(
-            SettingsJsonMigrator.migrate(JsonInstant.encodeToString(backupInput))
-        ).jsonObject
-        assertEquals(
-            JsonInstant.parseToJsonElement(result[SettingsStore.ADVANCED_APPEARANCE_SETTING]!!),
-            fromBackup["advancedAppearanceSetting"],
-        )
-        assertEquals(result.displayDoc(), fromBackup["displaySetting"])
-
-        // 写回去之后能解回模型：开关真的开了，原有字段还在
-        val restored = JsonInstant.decodeFromString(
-            AdvancedAppearanceSetting.serializer(),
-            JsonInstant.encodeToString(fromBackup.getValue("advancedAppearanceSetting")),
-        )
-        assertTrue(restored.enableAdvancedAppearance)
-        assertEquals(.9f, restored.micaTintStrength, 0f)
-        assertFalse(restored.enableChatTextReadability)
-        assertEquals(BackgroundSurfaceStyle.FROSTED, restored.pageSurfaceStyle)
-        assertEquals(12f, restored.pageSurfaceBlurRadius, 0f)
     }
 
     // 页面磨砂半径的独立 backfill：留住既有的磨砂页面强度，其他高级字段一个不动
@@ -493,9 +435,9 @@ class PreferenceStoreV6MigrationTest {
         }
     }
 
-    // 升级跑两遍、再从备份迁一遍：结果都不该变
+    // V6 跑两遍：结果不该变（两份文档都已经写过标记与继承值）
     @Test
-    fun `upgrade and backup are idempotent`() = runTest {
+    fun `upgrade is idempotent`() = runTest {
         val once = migrated(display = legacyBlur)
 
         val twice = migrated(
@@ -507,45 +449,34 @@ class PreferenceStoreV6MigrationTest {
             once[SettingsStore.ADVANCED_APPEARANCE_SETTING],
             twice[SettingsStore.ADVANCED_APPEARANCE_SETTING],
         )
-
-        // 备份那条路：两份文档拼成一份 settings.json，再迁一次不该有任何变化
-        val backup = """
-            {
-                "displaySetting": ${once[SettingsStore.DISPLAY_SETTING]},
-                "advancedAppearanceSetting": ${once[SettingsStore.ADVANCED_APPEARANCE_SETTING]}
-            }
-        """.trimIndent()
-        assertEquals(
-            JsonInstant.parseToJsonElement(backup),
-            JsonInstant.parseToJsonElement(SettingsJsonMigrator.migrate(backup)),
-        )
     }
 
-    // 升级后再由用户自己关掉高级外观：从备份恢复时旧开关不能把它重新打开
+    // V6 仍然按原样往 display 的原始 JSON 里写「已经搬过」的标记；模型里已经没有这个字段了，
+    // 所以设置只要过一遍模型它就消失。V7 会直接把这个键删掉（见 PreferenceStoreV7MigrationTest）。
     @Test
-    fun `turning advanced appearance off after the upgrade does not resurrect the old switch`() = runTest {
+    fun `the migrated marker is written by V6 but no longer survives the model`() = runTest {
         val once = migrated(display = legacyBlur)
         val displayJson = once[SettingsStore.DISPLAY_SETTING]!!
         assertTrue(JsonInstant.parseToJsonElement(displayJson).jsonObject.flag("legacyEffectsMigrated") == true)
 
-        // 设置会先过一遍模型（encodeDefaults 会把默认值也写出去），标志得留住
         val roundTripped = JsonInstant.encodeToString(
             DisplaySetting.serializer(),
             JsonInstant.decodeFromString(DisplaySetting.serializer(), displayJson),
         )
-        assertTrue(JsonInstant.parseToJsonElement(roundTripped).jsonObject.flag("legacyEffectsMigrated") == true)
-
-        // 用户随后关掉高级外观，再从备份恢复
-        val advancedOff = JsonObject(
-            once.appearanceDoc() + mapOf("enableAdvancedAppearance" to JsonPrimitive(false))
-        )
-        val restored = migrated(
-            display = roundTripped,
-            advanced = JsonInstant.encodeToString(advancedOff),
-        )
-
-        assertEquals(JsonPrimitive(false), restored.appearanceDoc()["enableAdvancedAppearance"])
-        assertEquals(roundTripped, restored[SettingsStore.DISPLAY_SETTING])
+        val document = JsonInstant.parseToJsonElement(roundTripped).jsonObject
+        // 退役字段一个都留不下来：显示设置里不再有它们的 @SerialName
+        listOf(
+            "legacyEffectsMigrated",
+            "enableBlurEffect",
+            "backgroundEffectType",
+            "blurOpacity",
+            "glassOpacity",
+            "enableTopBarBlur",
+            "topBarBlurRadius",
+            "topBarSurfaceOpacity",
+            "inputBlurRadius",
+            "inputSurfaceOpacity",
+        ).forEach { key -> assertFalse("模型里不该再有 $key", key in document) }
     }
 
     @Test
@@ -567,67 +498,6 @@ class PreferenceStoreV6MigrationTest {
         assertTrue(migration.shouldMigrate(mutablePreferencesOf()))
         assertTrue(migration.shouldMigrate(mutablePreferencesOf(SettingsStore.VERSION to 5)))
         assertFalse(migration.shouldMigrate(mutablePreferencesOf(SettingsStore.VERSION to 6)))
-    }
-
-    @Test
-    fun `backup settings json is migrated and keeps the legacy fields`() {
-        val migrated = SettingsJsonMigrator.migrate(
-            """{"displaySetting":{"enableBlurEffect":true,"backgroundEffectType":"glass","glassOpacity":0.35}}"""
-        )
-
-        val root = JsonInstant.parseToJsonElement(migrated).jsonObject
-        val appearance = root.getValue("advancedAppearanceSetting").jsonObject
-        assertEquals("liquid_glass", appearance.text("pageSurfaceStyle"))
-        assertEquals(16f, appearance.float("pageLiquidGlassBlurRadius"))
-        assertEquals(.35f, appearance.float("pageSurfaceOpacity"))
-        assertEquals(16f, appearance.float("chatBubbleBlurRadius"))
-        assertEquals("liquid_glass", appearance.text("richContentStyle"))
-
-        // 备份同样要把输入区与顶栏的继承值写回 displaySetting，否则恢复后只有页面变了
-        val display = root.getValue("displaySetting").jsonObject
-        assertEquals(JsonPrimitive(true), display["enableBlurEffect"])
-        assertEquals(JsonPrimitive("glass"), display["backgroundEffectType"])
-        assertEquals(JsonPrimitive(.35f), display["glassOpacity"])
-        assertEquals(16f, display.float("inputBlurRadius"))
-        assertEquals(.35f, display.float("inputSurfaceOpacity"))
-        assertEquals(16f, display.float("topBarBlurRadius"))
-        assertEquals(.35f, display.float("topBarSurfaceOpacity"))
-        assertTrue(display.flag("legacyEffectsMigrated") == true)
-    }
-
-    @Test
-    fun `backup json with advanced appearance already on keeps it`() {
-        val advanced = """{"enableAdvancedAppearance":true,"pageSurfaceStyle":"mica"}"""
-        val migrated = SettingsJsonMigrator.migrate(
-            """{"displaySetting":{"enableBlurEffect":true,"backgroundEffectType":"blur"},"advancedAppearanceSetting":$advanced}"""
-        )
-
-        val root = JsonInstant.parseToJsonElement(migrated).jsonObject
-        assertEquals(
-            JsonInstant.parseToJsonElement(advanced),
-            root.getValue("advancedAppearanceSetting"),
-        )
-
-        val display = root.getValue("displaySetting").jsonObject
-        assertTrue(display.flag("legacyEffectsMigrated") == true)
-        assertFalse("inputSurfaceOpacity" in display)
-        assertFalse("chatMessageBackgroundStyle" in display)
-    }
-
-    // 备份里那份文档存在但不是对象：坏数据，别当成缺失去凭空补一份
-    @Test
-    fun `backup json with a non object document is not treated as missing`() {
-        listOf(
-            """{"displaySetting":[],"advancedAppearanceSetting":{"enableAdvancedAppearance":true,"globalBackgroundBlurRadius":30}}""",
-            """{"displaySetting":null,"advancedAppearanceSetting":null}""",
-            """{"displaySetting":"not json","advancedAppearanceSetting":{"enableAdvancedAppearance":false}}""",
-        ).forEach { input ->
-            assertEquals(
-                "不该被改写：$input",
-                JsonInstant.parseToJsonElement(input),
-                JsonInstant.parseToJsonElement(SettingsJsonMigrator.migrate(input)),
-            )
-        }
     }
 
     // 开关与 marker 只接受真实 JSON 布尔，不把字符串、数字等误认成 true。
@@ -652,146 +522,4 @@ class PreferenceStoreV6MigrationTest {
             assertEquals(legacyBlur, broken[SettingsStore.DISPLAY_SETTING])
         }
     }
-
-    // 合法的小透明度：0..1 里的值原样落地，落进 DataStore 再读回来材质字段也还在
-    @Test
-    fun `legal low alpha and the migrated material fields survive persistence`() = runTest {
-        val result = migrated(
-            display = """{"enableBlurEffect":true,"backgroundEffectType":"blur","blurOpacity":0.05}"""
-        )
-        assertEquals(.05f, result.appearanceDoc().float("pageSurfaceOpacity"))
-        assertEquals(.05f, result.appearanceDoc().float("chatBubbleSurfaceOpacity"))
-        assertEquals(.05f, result.displayDoc().float("inputSurfaceOpacity"))
-
-        val settings = Settings(
-            displaySetting = JsonInstant.decodeFromString(
-                DisplaySetting.serializer(),
-                result[SettingsStore.DISPLAY_SETTING]!!,
-            ),
-            advancedAppearanceSetting = result.appearance(),
-        )
-        val stored = mutablePreferencesOf().apply { putSettings(settings) }
-        val read = stored.toSettings().advancedAppearanceSetting
-
-        assertEquals(.05f, read.pageSurfaceOpacity, 0f)
-        assertEquals(.05f, read.chatBubbleSurfaceOpacity!!, 0f)
-        assertEquals(.05f, read.richContentSurfaceOpacity, 0f)
-        assertEquals(12f, read.pageSurfaceBlurRadius, 0f)
-        assertEquals(12f, read.chatBubbleBlurRadius!!, 0f)
-        assertEquals(BackgroundSurfaceStyle.FROSTED, read.pageSurfaceStyle)
-        assertEquals(BackgroundSurfaceStyle.FROSTED, read.chatDockSurfaceStyle)
-        assertEquals(ChatBubbleStyle.FROSTED, read.chatBubbleStyle)
-        assertEquals(RichContentStyle.TRANSLUCENT, read.richContentStyle)
-        assertTrue(read.enableNavigationGlass)
-        assertTrue(read.enableChatDockGlass)
-
-        val readDisplay = stored.toSettings().displaySetting
-        assertEquals(.05f, readDisplay.inputSurfaceOpacity, 0f)
-        assertEquals(12f, readDisplay.topBarBlurRadius, 0f)
-
-        // alpha 0 也合法：0..1 里有它，不该被换成旧档默认值
-        val zero = migrated(
-            display = """{"enableBlurEffect":true,"backgroundEffectType":"glass","glassOpacity":0}"""
-        )
-        assertEquals(0f, zero.appearanceDoc().float("pageSurfaceOpacity"))
-        assertEquals(0f, zero.appearanceDoc().float("richContentSurfaceOpacity"))
-        assertEquals(0f, zero.displayDoc().float("topBarSurfaceOpacity"))
-    }
-
-    // 真实序列化的备份：用户升级后自己关掉高级外观，再恢复这份备份也不能把旧开关重新打开
-    @Test
-    fun `real serialized backup restored after switching it off stays off`() = runTest {
-        val once = migrated(display = legacyBlur)
-        val migratedDisplay = JsonInstant.decodeFromString(
-            DisplaySetting.serializer(),
-            once[SettingsStore.DISPLAY_SETTING]!!,
-        )
-        val switchedOff = JsonInstant.decodeFromString(
-            AdvancedAppearanceSetting.serializer(),
-            once[SettingsStore.ADVANCED_APPEARANCE_SETTING]!!,
-        ).copy(enableAdvancedAppearance = false)
-
-        // 新版本落盘时 encodeDefaults 会把默认值一起写出去：标记一定在文件里
-        val backup = JsonObject(
-            mapOf(
-                "displaySetting" to JsonInstant.parseToJsonElement(
-                    JsonInstant.encodeToString(DisplaySetting.serializer(), migratedDisplay)
-                ),
-                "advancedAppearanceSetting" to JsonInstant.parseToJsonElement(
-                    JsonInstant.encodeToString(AdvancedAppearanceSetting.serializer(), switchedOff)
-                ),
-            )
-        )
-        val backupDisplay = backup.getValue("displaySetting").jsonObject
-        assertTrue(backupDisplay.flag("legacyEffectsMigrated") == true)
-        assertEquals(JsonPrimitive(true), backupDisplay["enableBlurEffect"])
-
-        val restored = JsonInstant.parseToJsonElement(
-            SettingsJsonMigrator.migrate(JsonInstant.encodeToString(backup))
-        ).jsonObject
-
-        // 恢复后一个字都不该变：标记在，旧开关不再生效
-        assertEquals(backup, restored)
-        val restoredAppearance = JsonInstant.decodeFromString(
-            AdvancedAppearanceSetting.serializer(),
-            JsonInstant.encodeToString(restored.getValue("advancedAppearanceSetting")),
-        )
-        assertFalse(restoredAppearance.enableAdvancedAppearance)
-    }
-
-    // 同一份文档，DataStore 那条路拿到的是字符串，备份那条路拿到的是解好的元素：判断必须一致
-    @Test
-    fun `backup and datastore judge absent blank and broken documents the same way`() = runTest {
-        val malformedSwitch = """{"enableAdvancedAppearance":1}"""
-        val switchedOffJson = """{"enableAdvancedAppearance":false}"""
-        listOf(
-            StoredDocument("missing", null, null),
-            StoredDocument("empty string", "", JsonPrimitive("")),
-            StoredDocument("blank string", "  ", JsonPrimitive("  ")),
-            StoredDocument("json null", "null", JsonNull),
-            StoredDocument("array", "[]", JsonArray(emptyList())),
-            StoredDocument("number", "42", JsonPrimitive(42)),
-            StoredDocument("malformed switch", malformedSwitch, JsonInstant.parseToJsonElement(malformedSwitch)),
-            StoredDocument("switched off", switchedOffJson, JsonInstant.parseToJsonElement(switchedOffJson)),
-        ).forEach { document ->
-            val fromStore = migrated(display = legacyBlur, advanced = document.stored)
-            val root = buildMap<String, JsonElement> {
-                put("displaySetting", JsonInstant.parseToJsonElement(legacyBlur))
-                document.backup?.let { put("advancedAppearanceSetting", it) }
-            }
-            val fromBackup = JsonInstant.parseToJsonElement(
-                SettingsJsonMigrator.migrate(JsonInstant.encodeToString(JsonObject(root)))
-            ).jsonObject
-
-            val storeAppearance = fromStore[SettingsStore.ADVANCED_APPEARANCE_SETTING]
-            val backupAppearance = fromBackup["advancedAppearanceSetting"]
-            // 会不会写这一份：两边必须同进同退
-            assertEquals(
-                "高级外观那一份的判断对不上：${document.label}",
-                storeAppearance != document.stored,
-                backupAppearance != document.backup,
-            )
-            // 真写下去时，写的内容也一致
-            if (storeAppearance != document.stored) {
-                assertEquals(
-                    "高级外观那一份的内容对不上：${document.label}",
-                    storeAppearance?.let { JsonInstant.parseToJsonElement(it) },
-                    backupAppearance,
-                )
-            }
-            // display 那一份同理
-            assertEquals(
-                "display 那一份的判断对不上：${document.label}",
-                fromStore[SettingsStore.DISPLAY_SETTING] != legacyBlur,
-                fromBackup["displaySetting"] != JsonInstant.parseToJsonElement(legacyBlur),
-            )
-        }
-    }
 }
-
-/** 同一份文档在两条路上的两种写法：DataStore 里是字符串，备份里是已经解好的 JSON 元素。 */
-private class StoredDocument(
-    val label: String,
-    val stored: String?,
-    val backup: JsonElement?,
-)

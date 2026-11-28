@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -29,7 +28,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -44,13 +42,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.data.datastore.BackgroundSurfaceStyle
 import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.ui.components.richtext.richContentMaterial
-import me.rerere.rikkahub.ui.components.ui.AppearanceMaterial
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
-import me.rerere.rikkahub.ui.components.ui.advancedMaterial
-import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberMotionBlurSpec
@@ -134,31 +127,13 @@ private fun EmptyChatHero(
     slogan: String,
     hazeState: HazeState?,
 ) {
-    val settings = LocalSettings.current
-    val appearance = settings.advancedAppearanceSetting
-    val inspiration = appearance.inspirationAppearance
-    val bespoke = appearance.enableAdvancedAppearance && !inspiration.followRichContent
-    val material = when {
-        bespoke -> AppearanceMaterial(BackgroundSurfaceStyle.TRANSLUCENT, inspiration.surfaceOpacity)
-        else -> appearance.richContentMaterial()
-    }
-    val shape = RoundedCornerShape(if (bespoke) inspiration.cornerRadius.dp else 28.dp)
     val scheme = MaterialTheme.colorScheme
-    val baseColor = scheme.surfaceContainerLow
     val halo = scheme.primary.copy(alpha = 0.18f)
     val ring = scheme.outlineVariant.copy(alpha = 0.8f)
     Column(
         modifier = Modifier
             .padding(horizontal = 32.dp)
-            // 默认外观下这里是空态本身：不留卡片、不描边，只有头像和一束光。
-            // 用户开了高级外观才垫一层很淡的底，那是他自己选的表面，不该被这次改版吃掉
-            .then(
-                if (material != null) {
-                    Modifier.clip(shape).advancedMaterial(shape, baseColor, material, hazeState)
-                } else {
-                    Modifier
-                }
-            )
+            // 空态本身不留卡片、不描边，只有头像和一束光。
             .padding(horizontal = 24.dp, vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(18.dp),

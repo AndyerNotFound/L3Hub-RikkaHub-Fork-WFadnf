@@ -12,6 +12,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.datastore.migration.SettingsJsonMigrator
 import me.rerere.rikkahub.data.db.SQLiteConfiguration
 import me.rerere.rikkahub.utils.AppLanguage
 import java.io.File
@@ -272,8 +273,9 @@ object PendingDelta {
     }
 
     private suspend fun restoreSettings(context: Context, json: Json, raw: String, mode: RestoreMode) {
-        val settings = json.decodeFromString<Settings>(raw)
-        val element = json.parseToJsonElement(raw).jsonObject
+        val migrated = SettingsJsonMigrator.migrate(raw)
+        val settings = json.decodeFromString<Settings>(migrated)
+        val element = json.parseToJsonElement(migrated).jsonObject
         val launchCount = element["launchCount"]?.jsonPrimitive?.intOrNull ?: 0
         SettingsStore.restoreBeforeInitialization(
             context = context,

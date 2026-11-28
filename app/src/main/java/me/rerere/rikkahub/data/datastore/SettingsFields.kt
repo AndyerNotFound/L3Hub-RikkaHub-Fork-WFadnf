@@ -4,7 +4,6 @@ import android.util.Log
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import kotlinx.serialization.SerializationException
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.rikkahub.utils.JsonInstant
@@ -131,8 +130,6 @@ private fun reasoningLevel(
     decode = { name -> ReasoningLevel.entries.find { it.name == name } ?: ReasoningLevel.AUTO },
 )
 
-private val advancedAppearanceJson by lazy { Json(JsonInstant) { coerceInputValues = true } }
-
 internal val SETTINGS_FIELDS: List<SettingsField<*, *>> = with(SettingsStore) {
     listOf(
         // UI设置
@@ -141,21 +138,6 @@ internal val SETTINGS_FIELDS: List<SettingsField<*, *>> = with(SettingsStore) {
         json(CUSTOM_THEMES, Settings::customThemes) { copy(customThemes = it) },
         json(PALETTE, Settings::palette) { copy(palette = it) },
         json(DISPLAY_SETTING, Settings::displaySetting) { copy(displaySetting = it) },
-        SettingsField(
-            ADVANCED_APPEARANCE_SETTING,
-            Settings::advancedAppearanceSetting,
-            { copy(advancedAppearanceSetting = it) },
-            encode = { JsonInstant.encodeToString(it) },
-            decode = { raw ->
-                // An unknown appearance enum uses its default; malformed JSON must not reset other settings.
-                try {
-                    advancedAppearanceJson.decodeFromString<AdvancedAppearanceSetting>(raw)
-                } catch (_: SerializationException) {
-                    logSettingsWarning("Unable to read advanced appearance settings; using appearance defaults")
-                    AdvancedAppearanceSetting()
-                }
-            },
-        ),
         json(NETWORK_SETTING, Settings::networkSetting) { copy(networkSetting = it) },
         plain(DEVELOPER_MODE, Settings::developerMode) { copy(developerMode = it) },
 

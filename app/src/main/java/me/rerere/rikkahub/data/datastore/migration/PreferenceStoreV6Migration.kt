@@ -98,18 +98,18 @@ internal data class MigratedDisplayEffects(
     }
 }
 
-/** [me.rerere.rikkahub.data.datastore.BackgroundEffectType] 的落盘值。 */
+// 旧 BackgroundEffectType 的落盘值。模型已经随高级外观下线，这些字符串只剩 V6 自己还要读。
 private const val LEGACY_EFFECT_BLUR = "blur"
 private const val LEGACY_EFFECT_GLASS = "glass"
 
 /** 旧的事件类型缺键时模型默认 blur。 */
 private const val LEGACY_EFFECT_DEFAULT = LEGACY_EFFECT_BLUR
 
-/** [me.rerere.rikkahub.data.datastore.BackgroundSurfaceStyle] 的落盘值。 */
+// 旧 BackgroundSurfaceStyle 的落盘值：同样只剩 V6 往原始 JSON 里写。
 private const val SURFACE_FROSTED = "frosted"
 private const val SURFACE_LIQUID_GLASS = "liquid_glass"
 
-/** [me.rerere.rikkahub.data.datastore.RichContentStyle] 的落盘值；毛玻璃沿用既有的 translucent。 */
+// 旧 RichContentStyle 的落盘值；毛玻璃沿用既有的 translucent。
 private const val RICH_CONTENT_TRANSLUCENT = "translucent"
 private const val RICH_CONTENT_LIQUID_GLASS = "liquid_glass"
 
@@ -121,7 +121,7 @@ private const val LIQUID_GLASS_BLUR_RADIUS = 16f
 private const val LEGACY_BLUR_DEFAULT_OPACITY = .45f
 private const val LEGACY_GLASS_DEFAULT_OPACITY = .35f
 
-// 页面磨砂半径的合法区间与默认值（AdvancedAppearanceSetting.pageSurfaceBlurRadius）
+// 页面磨砂半径的合法区间与默认值（退役前的 AdvancedAppearanceSetting.pageSurfaceBlurRadius）
 private val PAGE_BLUR_RADIUS_RANGE = 0f..40f
 private const val DEFAULT_PAGE_BLUR_RADIUS = 20f
 
@@ -395,8 +395,8 @@ private fun JsonObject.legalUnitValue(key: String): Float? =
         ?.floatOrNull
         ?.takeIf { it.isFinite() && it in 0f..1f }
 
-/** 解析成对象；缺失、坏字符串、`null`、数组都返回 null。 */
-private fun String?.parseObjectOrNull(): JsonObject? =
+/** 解析成对象；缺失、坏字符串、`null`、数组都返回 null。V7 那条清理也用它，两条路判断一致。 */
+internal fun String?.parseObjectOrNull(): JsonObject? =
     this?.takeIf { it.isNotBlank() }?.let {
         runCatching { JsonInstant.parseToJsonElement(it) as? JsonObject }.getOrNull()
     }
