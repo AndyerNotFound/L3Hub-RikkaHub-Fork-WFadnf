@@ -308,7 +308,9 @@ internal fun NativeSidebarHost(
                 sidebar.setFolders(
                     folders.map { it.id.toString() },
                     folders.map { it.name },
-                    null,
+                    // 之前这里写死 null，每次 update 都把 Tab 拨回「默认」，
+                    // 内容却已经按 selectedFolderId 切走了 —— 两边不同步的根因
+                    selectedFolderId,
                 )
             },
         )

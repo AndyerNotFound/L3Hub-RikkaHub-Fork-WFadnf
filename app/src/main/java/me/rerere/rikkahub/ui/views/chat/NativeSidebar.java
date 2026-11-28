@@ -133,6 +133,9 @@ public final class NativeSidebar extends LinearLayout {
      * <p>TabLayout 的 Tab 只存文字，不认 id，所以另存一份顺序表按 index 查。
      */
     private final List<String> folderTabIds = new ArrayList<>();
+    /** 上一轮推下来的文件夹 id / 名称，用来判断要不要重建 Tab。 */
+    private List<String> folderIdsSnapshot = new ArrayList<>();
+    private List<String> folderNamesSnapshot = new ArrayList<>();
     /** 程序化选中 Tab 时用来抑制回调，避免和桥接层各推一次。 */
     private boolean suppressTabCallback;
     @Nullable private View updateCardSlot;
@@ -341,11 +344,15 @@ public final class NativeSidebar extends LinearLayout {
     }
 
     /**
-     * 文件夹 Tab。每次都整条重建：文件夹数量少，重建比增量维护省事，
-     * 也不会残留上一轮的 Tab。
+     * 文件夹 Tab。
      *
      * <p>第一项固定是「默认」，代表不筛文件夹。选中项按 {@code selectedId} 对齐；
      * 对不上时退回「默认」—— 比如刚删掉了一个正被选中的文件夹。
+     *
+     * <p>只有文件夹列表本身变了才重建 Tab。之前是无条件 {@code removeAllTabs()}，
+     * 而桥接层的 {@code update} 因为任何原因都会跑（流式输出刷新标题都会），
+     * 于是每次跑完指示条都被拆掉重装、动画从头播一遍 —— 看起来就是
+     * 「Tab 视觉」和「内容」各走各的。选中项的同步走 {@link #selectFolder}。
      */
     public void setFolders(
             @NonNull List<String> ids,
@@ -354,8 +361,16 @@ public final class NativeSidebar extends LinearLayout {
     ) {
         if (folderTabs == null) return;
 
-        this.selectedFolderId = selectedId;
+        // 列表没变就只同步选中项，不重建
+        if (!ids.equals(folderIdsSnapshot) || !names.equals(folderNamesSnapshot)) {
+            folderIdsSnapshot = new ArrayList<>(ids);
+            folderNamesSnapshot = new ArrayList<>(names);
+            rebuildFolderTabs(ids, names);
+        }
+        selectFolder(selectedId);
+    }
 
+    private void rebuildFolderTabs(@NonNull List<String> ids, @NonNull List<String> names) {
         // 重建 Tab：先摘监听，否则 removeAllTabs 会触发一堆 onTabUnselected
         suppressTabCallback = true;
         folderTabs.removeAllTabs();
@@ -372,16 +387,29 @@ public final class NativeSidebar extends LinearLayout {
             folderTabIds.add(id);
             folderTabs.addTab(folderTabs.newTab().setText(name));
         }
+        suppressTabCallback = false;
+    }
 
-        // 对齐选中项
+    /**
+     * 把 Tab 的选中态对齐到 {@code selectedId}，不回调 {@code onSelectFolder}。
+     *
+     * <p>内容切换（fade through）和指示条走的是同一次状态变化，
+     * 所以这里只在真的不一样时 {@code select()}，否则会打断指示条自己的动画。
+     */
+    public void selectFolder(@Nullable String selectedId) {
+        if (folderTabs == null) return;
+        this.selectedFolderId = selectedId;
+
         int target = 0;
         if (selectedId != null) {
             int index = folderTabIds.indexOf(selectedId);
             if (index >= 0) target = index;
         }
+        if (folderTabs.getSelectedTabPosition() == target) return;
+
+        suppressTabCallback = true;
         com.google.android.material.tabs.TabLayout.Tab tab = folderTabs.getTabAt(target);
         if (tab != null) tab.select();
-
         suppressTabCallback = false;
     }
 
@@ -566,9 +594,17 @@ public final class NativeSidebar extends LinearLayout {
             public void onTabReselected(com.google.android.material.tabs.TabLayout.Tab tab) {
                 // 再点一次当前 Tab：回到「默认」的筛选状态
                 if (suppressTabCallback || listener == null) return;
-                int index = tab.getPosition();
-                if (index < 0 || index >= folderTabIds.size()) return;
-                listener.onSelectFolder(folderTabIds.get(index));
+                // 已经停在「默认」上就没什么可退的
+                if (tab.getPosition() == 0) return;
+
+                // 把指示条拨回第一项，再报一次 null。
+                // 之前这里报的是当前 tab 自己的 id，而桥接层对「id 没变」直接 return，
+                // 这个手势等于没接上。
+                suppressTabCallback = true;
+                com.google.android.material.tabs.TabLayout.Tab first = folderTabs.getTabAt(0);
+                if (first != null) first.select();
+                suppressTabCallback = false;
+                listener.onSelectFolder(null);
             }
         });
 
