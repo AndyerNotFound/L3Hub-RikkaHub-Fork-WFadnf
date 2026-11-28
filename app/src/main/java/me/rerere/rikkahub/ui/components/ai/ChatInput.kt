@@ -27,9 +27,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -301,16 +303,13 @@ fun ChatInput(
     var cardHeightPx by remember { mutableIntStateOf(0) }
 
     // 悬浮栏：开启后先露出来；输入框拿着焦点时收起，离开再展开；
-    // 自动隐藏开启时静默 5 秒收起，上滑输入框重新拉起
+    // 自动隐藏开启时静默 5 秒收起，上滑输入框重新拉起。
+    //
+    // 它现在浮在底栏之上（Overlay），不再占流内高度：显隐不会改动输入框的位置。
+    // 原来这里还算了 floatingBarFullHeight 塞进卡片槽位，一露出来就把卡片往上顶，
+    // 那条耦合已经删掉了。
     val floatingBarEnabled = settings.displaySetting.enableFloatingBar && floatingBarItems.isNotEmpty()
     val floatingBarAutoHide = settings.displaySetting.floatingBarAutoHide
-    // 悬浮栏完全展开时的高度：空会话的卡片槽位也把它算进去，
-    // 聚焦收起时底栏总高度不变，英雄卡和输入区不会跟着再动一次
-    val floatingBarFullHeight = if (floatingBarEnabled) {
-        16.dp + FloatingBarSizing.buttonExtent(settings.displaySetting.floatingBarScale)
-    } else {
-        0.dp
-    }
     var floatingBarVisible by remember { mutableStateOf(false) }
     var floatingBarActivity by remember { mutableIntStateOf(0) }
     LaunchedEffect(floatingBarEnabled, state) {
@@ -601,11 +600,14 @@ fun ChatInput(
                 // 空会话里输入区顶边钉在英雄卡下面，卡片向下展开；槽位不变，底栏总高度就不变，
                 // 英雄卡和 Scaffold 的底部内边距也不用跟着每帧重新布局。
                 //
-                // 槽位 = max(卡片实际高度, 收起高度 + 一档展开) + 悬浮栏：
+                // 槽位 = max(卡片实际高度, 收起高度 + 一档展开)：
                 // - 「收起高度 + 一档展开」是地板。收放动画全程卡片都不会低于它，
                 //   所以这段动画里底栏高度是个定值。
                 // - 卡片自己更高的那部分（文字折行、附件、编辑提示条）照样算进来，
-                //   否则离开输入框、悬浮栏露出来的那一下，底栏会被顶高一截。
+                //   否则离开输入框的那一下，底栏会被顶高一截。
+                //
+                // 悬浮栏不在这里：它改成浮在底栏之上的独立层之后，不再占流内高度，
+                // 输入框的位置和它显隐完全无关（原来它一露出来就把卡片往上顶）。
                 //
                 // 这两个高度都是测量出来的，只能在测量阶段读：在组合阶段读它们，
                 // 收放动画的每一帧都会把整个 ChatInput（清单、悬浮栏、按钮行）重组一遍。
@@ -617,7 +619,7 @@ fun ChatInput(
                             0
                         }
                         val cardPx = maxOf(cardHeightPx, floorPx)
-                        if (cardPx > 0) cardPx + floatingBarFullHeight.roundToPx() else 0
+                        if (cardPx > 0) cardPx else 0
                     }
                 }
                 Box(
@@ -1055,17 +1057,21 @@ fun ChatInput(
                                 }
                             }
                         }
-                        if (floatingBarEnabled) {
-                            ChatFloatingBar(
-                                visible = floatingBarVisible,
-                                items = floatingBarItems,
-                                onItemClick = onFloatingBarItemClick,
-                                hazeState = hazeState,
-                                displaySetting = settings.displaySetting,
-                                // 聊天坞总闸关着时是 null，悬浮栏退回一道实色底
-                                material = settings.chatDockMaterial(),
-                            )
-                        }
+                    }
+                    // 悬浮工具栏叠在输入卡之上，不参与这一列的布局：
+                    // 它显隐不会改动卡片位置（原来它排在 Column 里，一露出来就把卡片往上顶）。
+                    // 用 TopCenter 对齐到输入卡的顶边，往下压出 ScreenOffset 的外距，
+                    // 看起来就是浮在卡片上方的一条独立胶囊。
+                    if (floatingBarEnabled) {
+                        ChatFloatingBar(
+                            visible = floatingBarVisible,
+                            items = floatingBarItems,
+                            onItemClick = onFloatingBarItemClick,
+                            displaySetting = settings.displaySetting,
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .offset(y = -FloatingToolbarDefaults.ScreenOffset - 8.dp),
+                        )
                     }
                 }
             }

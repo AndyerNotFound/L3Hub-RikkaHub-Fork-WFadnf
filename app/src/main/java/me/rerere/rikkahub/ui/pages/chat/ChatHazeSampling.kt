@@ -15,7 +15,6 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.LiquidGlassRenderer
 import me.rerere.rikkahub.data.model.parameters
 import me.rerere.rikkahub.data.model.usesMaterial3Style
-import me.rerere.rikkahub.ui.components.ai.chatDockMaterial
 import me.rerere.rikkahub.ui.components.message.messageBubbleMaterial
 import me.rerere.rikkahub.ui.components.message.thinkingBubbleMaterial
 import me.rerere.rikkahub.ui.components.richtext.richContentMaterial
@@ -88,7 +87,8 @@ internal fun Settings.chatHazeCapturePlan(
     val chromeMaterials = listOfNotNull(
         appearance.composerMaterial(display),
         appearance.overlayMaterial(),
-        chatDockMaterial().takeIf { display.enableFloatingBar && display.floatingBarItems.isNotEmpty() },
+        // 悬浮工具栏换成 M3 FloatingToolbar 之后不再接玻璃底板，
+        // 这里也不再为它申请 haze 源（省掉一份没人用的模糊开销）。
         // Either the whole top bar or its controls consume this source.
         topBarMaterial,
     )

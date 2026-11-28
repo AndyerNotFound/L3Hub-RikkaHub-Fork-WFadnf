@@ -1,40 +1,27 @@
 package me.rerere.rikkahub.ui.components.ai
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import dev.chrisbanes.haze.HazeState
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.BubbleChat
 import me.rerere.hugeicons.stroke.ChartColumn
@@ -50,12 +37,7 @@ import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.TransactionHistory
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DisplaySetting
-import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.FloatingBarItem
-import me.rerere.rikkahub.ui.components.ui.AppearanceMaterial
-import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
-import me.rerere.rikkahub.ui.theme.LocalFullWidthComponents
-import me.rerere.rikkahub.ui.theme.rememberFixedSpec
 import me.rerere.ui.components.Tooltip
 import kotlin.math.roundToInt
 
@@ -115,162 +97,63 @@ internal fun FloatingBarItem.label(): String = stringResource(
 )
 
 /**
- * 输入框下方聊天坞的材质。
+ * 输入框下方的悬浮工具栏。
  *
- * 显式开启后，悬浮工具栏沿用聊天背景源，单独应用聊天坞自己的材质：
- * 材质档读 `chatDockSurfaceStyle`（默认液态玻璃），着色读 `chatDockGlassOpacity`，
- * 模糊半径读 `chatDockGlassBlurRadius`，性能开关读 `enableChatDockPerformanceEffects`。
+ * 用 M3 的 [HorizontalFloatingToolbar]：容器宽度跟着内容走、四周留出
+ * [FloatingToolbarDefaults.ScreenOffset] 的外距、圆角来自
+ * [FloatingToolbarDefaults.ContainerShape]（全圆角胶囊），elevation 也由它给。
  *
- * 返回 null 时容器退回一道实色底：高级外观关着，或者聊天坞总闸
- * （`enableChatDockGlass`）关着，两种情况都不该借顶栏的材质顶上。
- */
-internal fun Settings.chatDockMaterial(): AppearanceMaterial? {
-    val appearance = advancedAppearanceSetting
-    if (!appearance.enableAdvancedAppearance || !appearance.enableChatDockGlass) {
-        return null
-    }
-    return AppearanceMaterial(
-        style = appearance.chatDockSurfaceStyle,
-        opacity = appearance.chatDockGlassOpacity,
-        radius = appearance.chatDockGlassBlurRadius,
-        effects = appearance.enableChatDockPerformanceEffects,
-    )
-}
-
-/**
- * 输入框下方的悬浮栏。
+ * 这里不再自己画胶囊：原来的实现是通栏贴底 + 手画投影 + 玻璃底板，
+ * 换成 M3 之后材质统一由 [FloatingToolbarDefaults.standardFloatingToolbarColors] 决定，
+ * 不再接 advancedMaterial / haze。
  *
- * 容器直接用顶栏那颗胶囊（[ChatCapsule]）：同底色、同投影、同模糊与描边，
- * 按钮按胶囊的切面平均分段，段与段之间用 [ChatCapsuleDivider] 隔开。
- *
- * 拉起和隐藏都走同一条过渡：高度从 0 展开或收回，内容同时做竖向位移与模糊淡入淡出。
- * 材质与透明度跟随聊天坞自己的高级外观设置。
- *
- * 高级外观开启并且打开了聊天坞（`enableChatDockGlass`）时，
- * 容器按 `chatDockSurfaceStyle` 取材质，着色读 `chatDockGlassOpacity`，
- * 性能开关读 `enableChatDockPerformanceEffects`；Haze 源仍然是页面那一个，不在这里新开。
- * [material] 留空则整条栏保持一道实色底。
+ * 关键一点：它是**浮层**，不占流内高度。调用方把它放在底栏的 Box 里叠加，
+ * 显隐不会改动输入框的位置——原来它参与布局，一露出来就把卡片往上顶。
  */
 @Composable
 internal fun ChatFloatingBar(
     visible: Boolean,
     items: List<FloatingBarItem>,
     onItemClick: (FloatingBarItem) -> Unit,
-    hazeState: HazeState?,
     displaySetting: DisplaySetting,
     modifier: Modifier = Modifier,
-    material: AppearanceMaterial? = null,
 ) {
-    val fullWidth = LocalFullWidthComponents.current
-    val density = LocalDensity.current
-    val slideDistance = with(density) { 18.dp.toPx() }
-    // 显隐共用一组参数：收起不再比展开快一截，高度、位移、透明度走同一条时间线
-    val barTransitionMillis = 320
-    val barEasing = FastOutSlowInEasing
-    // 节奏保持不变，只接通「关闭动效」与「动画速度」两档开关
-    val barSpec = rememberFixedSpec<Float>(barTransitionMillis, barEasing)
-    val barSizeSpec = rememberFixedSpec<IntSize>(barTransitionMillis, barEasing)
-    val transition = updateTransition(targetState = visible, label = "chatFloatingBar")
-    val progress by transition.animateFloat(
-        transitionSpec = { barSpec },
-        label = "chatFloatingBarProgress",
-    ) { shown -> if (shown) 1f else 0f }
-    val blur = rememberMotionBlurSteps(maxRadius = 6.dp)
-    val itemExtent = FloatingBarSizing.buttonExtent(displaySetting.floatingBarScale)
     val iconExtent = FloatingBarSizing.iconExtent(displaySetting.floatingBarScale)
+    val itemExtent = FloatingBarSizing.buttonExtent(displaySetting.floatingBarScale)
 
+    // 显隐走 M3 自己的展开/收起曲线，不再自己算位移和模糊：
+    // 容器高度、透明度、圆角都由 FloatingToolbar 内部处理。
     AnimatedVisibility(
         visible = visible,
         modifier = modifier,
-        enter = expandVertically(animationSpec = barSizeSpec, expandFrom = Alignment.Top),
-        exit = shrinkVertically(animationSpec = barSizeSpec, shrinkTowards = Alignment.Top),
+        enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
+        exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .graphicsLayer {
-                    alpha = progress
-                    translationY = slideDistance * (1f - progress)
-                    renderEffect = blur.at(1f - progress)
-                }
-                .padding(top = 8.dp)
-                .padding(horizontal = if (fullWidth) 0.dp else 12.dp),
-            contentAlignment = Alignment.Center,
+        HorizontalFloatingToolbar(
+            expanded = true,
+            // 容器高度跟着设置里的缩放走，但只给下限：M3 的容器自带 8dp 内边距，
+            // 硬写 height 会把图标压扁。关掉 IconButton 的 48dp 最小触控，
+            // 否则它会撑破容器（图标本身 36dp 左右，触控区由容器高度兜住）。
+            modifier = Modifier.heightIn(min = itemExtent),
+            contentPadding = PaddingValues(horizontal = 4.dp),
         ) {
-            ChatCapsule(
-                hazeState = hazeState,
-                material = material,
-                modifier = Modifier
-                    .then(if (fullWidth) Modifier.fillMaxWidth() else Modifier)
-                    .height(itemExtent),
-            ) {
-                items.forEachIndexed { index, item ->
-                    // 分隔线只切中间一段，胶囊仍是一整块；高度跟着缩放走，比例和顶栏一致
-                    if (index > 0) {
-                        ChatCapsuleDivider(height = itemExtent * 0.4f)
+            CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                items.forEach { item ->
+                    val label = item.label()
+                    Tooltip(tooltip = { Text(label) }) {
+                        IconButton(
+                            onClick = { onItemClick(item) },
+                            modifier = Modifier.size(itemExtent),
+                        ) {
+                            Icon(
+                                imageVector = item.icon,
+                                contentDescription = label,
+                                modifier = Modifier.size(iconExtent),
+                            )
+                        }
                     }
-                    FloatingBarItemButton(
-                        item = item,
-                        onClick = { onItemClick(item) },
-                        shape = segmentShape(
-                            index = index,
-                            lastIndex = items.lastIndex,
-                            radius = itemExtent / 2,
-                            fullWidth = fullWidth,
-                        ),
-                        iconExtent = iconExtent,
-                        modifier = Modifier
-                            .then(if (fullWidth) Modifier.weight(1f) else Modifier.width(itemExtent))
-                            .fillMaxHeight(),
-                    )
                 }
             }
-        }
-    }
-}
-
-/**
- * 一段按钮的背景形状：就是胶囊在这一段上的切面。
- *
- * 两头的段跟着胶囊收圆，中间的段是直角。按下/长按的反馈照这个形状裁，
- * 每一段的底色都是切开的区域，而不是各自画一颗圆。
- */
-private fun segmentShape(
-    index: Int,
-    lastIndex: Int,
-    radius: Dp,
-    fullWidth: Boolean,
-): Shape = when {
-    fullWidth -> RectangleShape
-    lastIndex <= 0 -> RoundedCornerShape(radius)
-    index == 0 -> RoundedCornerShape(topStart = radius, bottomStart = radius)
-    index == lastIndex -> RoundedCornerShape(topEnd = radius, bottomEnd = radius)
-    else -> RectangleShape
-}
-
-@Composable
-private fun FloatingBarItemButton(
-    item: FloatingBarItem,
-    onClick: () -> Unit,
-    shape: Shape,
-    iconExtent: Dp,
-    modifier: Modifier = Modifier,
-) {
-    val label = item.label()
-    Tooltip(modifier = modifier, tooltip = { Text(label) }) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(shape)
-                .clickable(onClick = onClick),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = item.icon,
-                contentDescription = label,
-                modifier = Modifier.size(iconExtent),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }
