@@ -33,6 +33,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -106,6 +107,9 @@ import me.rerere.rikkahub.ui.modifier.MotionExpandCollapse
 import me.rerere.rikkahub.ui.modifier.onClick
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.adaptiveShape
+import me.rerere.rikkahub.utils.UiState
+import me.rerere.rikkahub.utils.UpdateChecker
+import me.rerere.rikkahub.utils.UpdateInfo
 import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.rikkahub.utils.toDp
 import me.rerere.ui.components.AnimatedAlertDialog
@@ -276,14 +280,35 @@ fun ChatDrawerContent(
         }
     }
 
+    // 更新检查原先借 ChatVM 的 updateState；抽屉整页化后不再持有 ChatVM，
+    // 这里按同一套条件自己订阅 UpdateChecker，避免为一个卡片把整个会话 VM 拉进来
+    val updateChecker = koinInject<UpdateChecker>()
+    val updateCheckActive = BuildConfig.UPDATE_CHECK_ENABLED &&
+        !BuildConfig.IS_PLAY_STORE &&
+        !settings.init &&
+        updateChecksEnabled
+    val updateState by produceState<UiState<UpdateInfo>>(
+        initialValue = UiState.Loading,
+        updateCheckActive,
+    ) {
+        if (!updateCheckActive) {
+            value = UiState.Loading
+            return@produceState
+        }
+        updateChecker.updateState.collect { value = it }
+    }
+
     // 抽屉顶部：更新/备份提醒、用户信息、常用入口和排序
     val drawerHeader: @Composable () -> Unit = {
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (BuildConfig.UPDATE_CHECK_ENABLED && updateChecksEnabled && !BuildConfig.IS_PLAY_STORE) {
-                UpdateCard(vm)
+            if (updateCheckActive) {
+                UpdateCard(
+                    state = updateState,
+                    updateChecker = updateChecker,
+                )
             }
 
             BackupReminderCard(

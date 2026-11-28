@@ -24,7 +24,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Download01
@@ -33,11 +32,13 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.useThrottle
-import me.rerere.rikkahub.ui.pages.chat.ChatVM
 import me.rerere.rikkahub.ui.style.Card
 import me.rerere.rikkahub.ui.style.IconButton
 import me.rerere.rikkahub.ui.style.OutlinedCard
+import me.rerere.rikkahub.utils.UiState
+import me.rerere.rikkahub.utils.UpdateChecker
 import me.rerere.rikkahub.utils.UpdateDownload
+import me.rerere.rikkahub.utils.UpdateInfo
 import me.rerere.rikkahub.utils.Version
 import me.rerere.rikkahub.utils.onError
 import me.rerere.rikkahub.utils.onSuccess
@@ -50,8 +51,10 @@ import kotlin.time.toJavaInstant
 
 @OptIn(ExperimentalTime::class)
 @Composable
-fun UpdateCard(vm: ChatVM) {
-    val state by vm.updateState.collectAsStateWithLifecycle()
+fun UpdateCard(
+    state: UiState<UpdateInfo>,
+    updateChecker: UpdateChecker,
+) {
     val context = LocalContext.current
     val toaster = LocalToaster.current
     state.onError {
@@ -120,7 +123,7 @@ fun UpdateCard(vm: ChatVM) {
             }
         }
         val downloadHandler = useThrottle<UpdateDownload>(500) { item ->
-            vm.updateChecker.downloadUpdate(context, item)
+            updateChecker.downloadUpdate(context, item)
             showDetail = false
             toaster.show(context.getString(R.string.update_card_downloading), type = ToastType.Info)
         }
