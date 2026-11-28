@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -46,6 +47,7 @@ import me.rerere.rikkahub.ui.theme.LocalAnimationsEnabled
 import me.rerere.rikkahub.ui.theme.slideDurationMillis
 import me.rerere.rikkahub.ui.views.chat.NativeSidebar
 import me.rerere.rikkahub.ui.views.chat.SidebarRow
+import me.rerere.rikkahub.ui.views.chat.rememberNativeChatContext
 import me.rerere.rikkahub.utils.navigateToChatPage
 import org.koin.androidx.compose.koinViewModel
 import java.time.LocalDate
@@ -74,6 +76,7 @@ internal fun NativeSidebarHost(
     val navController = LocalNavController.current
     val settings = LocalSettings.current
     val appContext = LocalContext.current
+    val themedContext = rememberNativeChatContext()
     // ChatDrawerVM 要 SavedStateHandle（记滚动位置与折叠状态），
     // 而 SavedStateHandle 只有能提供 SavedStateRegistry 的 owner 才给得出来。
     // 用默认 owner 会抛 InstanceCreationException: Could not create instance for ChatDrawerVM。
@@ -131,174 +134,177 @@ internal fun NativeSidebarHost(
         )
     }
 
-    AndroidView(
-        modifier = modifier,
-        factory = { ctx ->
-            NativeSidebar(ctx).apply {
-                setIconBinder { container, iconKey, tint ->
-                    container.addView(
-                        ComposeView(container.context).apply {
-                            setContent {
-                                Icon(
-                                    imageVector = sidebarIcon(iconKey),
-                                    contentDescription = null,
-                                    tint = Color(tint),
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(1.dp),
-                                )
-                            }
-                        }
-                    )
-                }
-
-                setSlotBinder { container, slot ->
-                    container.addView(
-                        ComposeView(container.context).apply {
-                            // 整块组件要读 koin 与 CompositionLocal，把宿主那套搬进来
-                            hostView.findViewTreeLifecycleOwner()?.let(::setViewTreeLifecycleOwner)
-                            hostView.findViewTreeSavedStateRegistryOwner()
-                                ?.let(::setViewTreeSavedStateRegistryOwner)
-                            hostView.findViewTreeViewModelStoreOwner()
-                                ?.let(::setViewTreeViewModelStoreOwner)
-                            setContent {
-                                SidebarSlot(
-                                    slot = slot,
-                                    listVm = listVm,
-                                    onNavigateSettings = onOpenSettings,
-                                )
-                            }
-                        }
-                    )
-                }
-
-                setConversationListListener(object : NativeSidebar.ConversationListListener {
-                    override fun onConversationClick(conversationId: String) {
-                        val id = NativeSidebar.toUuid(conversationId) ?: return
-                        navigateToChatPage(navController, Uuid.parse(id.toString()))
-                    }
-
-                    override fun onConversationLongClick(rowView: View, row: SidebarRow) {
-                        menuRow = row
-                        menuAnchor = rowView.windowRect()
-                    }
-
-                    override fun onConversationToggle(
-                        conversationId: String,
-                        checked: Boolean,
-                    ) {
-                        selectedIds = if (checked) selectedIds + conversationId
-                        else selectedIds - conversationId
-                    }
-
-                    override fun onHeaderClick(row: SidebarRow) {
-                        when (row.kind) {
-                            SidebarRow.Kind.FOLDER_HEADER ->
-                                drawerVm.toggleFolderCollapsed(
-                                    row.folderUuid()?.let { Uuid.parse(it.toString()) }
-                                )
-
-                            SidebarRow.Kind.DATE_HEADER ->
-                                row.date?.let { iso ->
-                                    runCatching { LocalDate.parse(iso) }.getOrNull()
-                                        ?.let { drawerVm.toggleDateCollapsed(it) }
-                                }
-
-                            else -> Unit
-                        }
-                    }
-
-                    override fun onFolderHeaderLongClick(rowView: View, row: SidebarRow) {
-                        // 文件夹的编辑菜单暂时不开：它要改名 / 删除 / 绑工作区三件事，
-                        // 与已完成的 NativeSelectMenu 结构一致，但回调还没接过来
-                    }
-                })
-
-                setListener(object : NativeSidebar.Listener {
-                    override fun onNewChat() = onNewChat()
-                    override fun onOpenSettings() = onOpenSettings()
-                    override fun onOpenAssistant() = navController.navigate(Screen.Assistant)
-                    override fun onOpenImageGen() = navController.navigate(Screen.ImageGen)
-                    override fun onOpenFavorite() = navController.navigate(Screen.Favorite)
-                    override fun onOpenStats() = navController.navigate(Screen.Stats)
-                    override fun onOpenHistory() = navController.navigate(Screen.History)
-                    override fun onOpenMessageSearch() =
-                        navController.navigate(Screen.MessageSearch)
-
-                    override fun onOpenMediaCreation() =
-                        navController.navigate(Screen.MediaCreationSessions)
-
-                    override fun onOpenTranslator() = navController.navigate(Screen.Translator)
-                    override fun onEditNickname() = Unit
-                    override fun onSelectFolder(folderId: String?) {
-                        if (selectedFolderId == folderId) return
-                        selectedFolderId = folderId
-                    }
-                    override fun onCreateFolder() = Unit
-                    override fun onRenameFolder(folderId: String) = Unit
-                    override fun onDeleteFolder(folderId: String) = Unit
-                    override fun onSortClick(anchorView: View) = Unit
-                    override fun onAssistantPickerClick(anchorView: View) = Unit
-
-                    override fun onExitSelection() {
-                        selectionMode = false
-                        selectedIds = emptySet()
-                    }
-
-                    override fun onDeleteSelected(conversationIds: List<String>) {
-                        if (conversationIds.isEmpty()) return
-                        scope.launch {
-                            conversationIds.forEach { id ->
-                                val conversation = verticalItems
-                                    .filterIsInstance<ConversationListItem.Item>()
-                                    .firstOrNull { it.conversation.id.toString() == id }
-                                    ?.conversation
-                                if (conversation != null) {
-                                    listVm.deleteConversation(conversation).join()
+    // XML 依赖 Material/AppCompat 主题；深色模式或缩放变化时同步重建 View。
+    key(themedContext) {
+        AndroidView(
+            modifier = modifier,
+            factory = {
+                NativeSidebar(themedContext).apply {
+                    setIconBinder { container, iconKey, tint ->
+                        container.addView(
+                            ComposeView(container.context).apply {
+                                setContent {
+                                    Icon(
+                                        imageVector = sidebarIcon(iconKey),
+                                        contentDescription = null,
+                                        tint = Color(tint),
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(1.dp),
+                                    )
                                 }
                             }
-                            selectionMode = false
-                            selectedIds = emptySet()
-                            if (conversationIds.any { it == currentConversationId?.toString() }) {
-                                navigateToChatPage(navController)
-                            }
-                        }
-                    }
-
-                    override fun onAssistantSettingClick() {
-                        navController.navigate(
-                            Screen.AssistantDetail(id = settings.assistantId.toString())
                         )
                     }
-                })
-            }
-        },
-        update = { sidebar ->
-            sidebar.setAnimationsEnabled(animationsEnabled)
-            sidebar.setTransformDuration(duration)
-            sidebar.setSelectionMode(selectionMode)
-            sidebar.updateSelectionCount(selectedIds.size)
-            // 换文件夹时整批换内容，走 fade through；
-            // 其余情况（流式输出刷新标题、勾选变化）走 DiffUtil 增量，不播转场
-            if (lastSubmittedFolder != selectedFolderId) {
-                lastSubmittedFolder = selectedFolderId
-                sidebar.submitRowsWithFadeThrough(rows)
-            } else {
-                sidebar.submitRows(rows)
-            }
-            sidebar.setCurrentConversationId(currentConversationId?.toString())
-            sidebar.setUser(
-                settings.displaySetting.userNickname
-                    .ifBlank { appContext.getString(R.string.user_default_name) },
-                "",
-            )
-            sidebar.setFolders(
-                folders.map { it.id.toString() },
-                folders.map { it.name },
-                null,
-            )
-        },
-    )
+
+                    setSlotBinder { container, slot ->
+                        container.addView(
+                            ComposeView(container.context).apply {
+                                // 整块组件要读 koin 与 CompositionLocal，把宿主那套搬进来
+                                hostView.findViewTreeLifecycleOwner()?.let(::setViewTreeLifecycleOwner)
+                                hostView.findViewTreeSavedStateRegistryOwner()
+                                    ?.let(::setViewTreeSavedStateRegistryOwner)
+                                hostView.findViewTreeViewModelStoreOwner()
+                                    ?.let(::setViewTreeViewModelStoreOwner)
+                                setContent {
+                                    SidebarSlot(
+                                        slot = slot,
+                                        listVm = listVm,
+                                        onNavigateSettings = onOpenSettings,
+                                    )
+                                }
+                            }
+                        )
+                    }
+
+                    setConversationListListener(object : NativeSidebar.ConversationListListener {
+                        override fun onConversationClick(conversationId: String) {
+                            val id = NativeSidebar.toUuid(conversationId) ?: return
+                            navigateToChatPage(navController, Uuid.parse(id.toString()))
+                        }
+
+                        override fun onConversationLongClick(rowView: View, row: SidebarRow) {
+                            menuRow = row
+                            menuAnchor = rowView.windowRect()
+                        }
+
+                        override fun onConversationToggle(
+                            conversationId: String,
+                            checked: Boolean,
+                        ) {
+                            selectedIds = if (checked) selectedIds + conversationId
+                            else selectedIds - conversationId
+                        }
+
+                        override fun onHeaderClick(row: SidebarRow) {
+                            when (row.kind) {
+                                SidebarRow.Kind.FOLDER_HEADER ->
+                                    drawerVm.toggleFolderCollapsed(
+                                        row.folderUuid()?.let { Uuid.parse(it.toString()) }
+                                    )
+
+                                SidebarRow.Kind.DATE_HEADER ->
+                                    row.date?.let { iso ->
+                                        runCatching { LocalDate.parse(iso) }.getOrNull()
+                                            ?.let { drawerVm.toggleDateCollapsed(it) }
+                                    }
+
+                                else -> Unit
+                            }
+                        }
+
+                        override fun onFolderHeaderLongClick(rowView: View, row: SidebarRow) {
+                            // 文件夹的编辑菜单暂时不开：它要改名 / 删除 / 绑工作区三件事，
+                            // 与已完成的 NativeSelectMenu 结构一致，但回调还没接过来
+                        }
+                    })
+
+                    setListener(object : NativeSidebar.Listener {
+                        override fun onNewChat() = onNewChat()
+                        override fun onOpenSettings() = onOpenSettings()
+                        override fun onOpenAssistant() = navController.navigate(Screen.Assistant)
+                        override fun onOpenImageGen() = navController.navigate(Screen.ImageGen)
+                        override fun onOpenFavorite() = navController.navigate(Screen.Favorite)
+                        override fun onOpenStats() = navController.navigate(Screen.Stats)
+                        override fun onOpenHistory() = navController.navigate(Screen.History)
+                        override fun onOpenMessageSearch() =
+                            navController.navigate(Screen.MessageSearch)
+
+                        override fun onOpenMediaCreation() =
+                            navController.navigate(Screen.MediaCreationSessions)
+
+                        override fun onOpenTranslator() = navController.navigate(Screen.Translator)
+                        override fun onEditNickname() = Unit
+                        override fun onSelectFolder(folderId: String?) {
+                            if (selectedFolderId == folderId) return
+                            selectedFolderId = folderId
+                        }
+                        override fun onCreateFolder() = Unit
+                        override fun onRenameFolder(folderId: String) = Unit
+                        override fun onDeleteFolder(folderId: String) = Unit
+                        override fun onSortClick(anchorView: View) = Unit
+                        override fun onAssistantPickerClick(anchorView: View) = Unit
+
+                        override fun onExitSelection() {
+                            selectionMode = false
+                            selectedIds = emptySet()
+                        }
+
+                        override fun onDeleteSelected(conversationIds: List<String>) {
+                            if (conversationIds.isEmpty()) return
+                            scope.launch {
+                                conversationIds.forEach { id ->
+                                    val conversation = verticalItems
+                                        .filterIsInstance<ConversationListItem.Item>()
+                                        .firstOrNull { it.conversation.id.toString() == id }
+                                        ?.conversation
+                                    if (conversation != null) {
+                                        listVm.deleteConversation(conversation).join()
+                                    }
+                                }
+                                selectionMode = false
+                                selectedIds = emptySet()
+                                if (conversationIds.any { it == currentConversationId?.toString() }) {
+                                    navigateToChatPage(navController)
+                                }
+                            }
+                        }
+
+                        override fun onAssistantSettingClick() {
+                            navController.navigate(
+                                Screen.AssistantDetail(id = settings.assistantId.toString())
+                            )
+                        }
+                    })
+                }
+            },
+            update = { sidebar ->
+                sidebar.setAnimationsEnabled(animationsEnabled)
+                sidebar.setTransformDuration(duration)
+                sidebar.setSelectionMode(selectionMode)
+                sidebar.updateSelectionCount(selectedIds.size)
+                // 换文件夹时整批换内容，走 fade through；
+                // 其余情况（流式输出刷新标题、勾选变化）走 DiffUtil 增量，不播转场
+                if (lastSubmittedFolder != selectedFolderId) {
+                    lastSubmittedFolder = selectedFolderId
+                    sidebar.submitRowsWithFadeThrough(rows)
+                } else {
+                    sidebar.submitRows(rows)
+                }
+                sidebar.setCurrentConversationId(currentConversationId?.toString())
+                sidebar.setUser(
+                    settings.displaySetting.userNickname
+                        .ifBlank { appContext.getString(R.string.user_default_name) },
+                    "",
+                )
+                sidebar.setFolders(
+                    folders.map { it.id.toString() },
+                    folders.map { it.name },
+                    null,
+                )
+            },
+        )
+    }
 
     // 会话操作菜单
     val target = menuRow
