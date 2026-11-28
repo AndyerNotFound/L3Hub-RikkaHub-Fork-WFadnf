@@ -74,7 +74,8 @@ internal fun NativeFloatingMenuHost(
         icons = icons,
     ) {
         items.forEachIndexed { index, item ->
-            addItem(labels[index], null, selected = false) {
+            // Java 方法不能用命名参数，位置参数按 addItem(String, Integer, boolean, Runnable) 传
+            addItem(labels[index], null, false) {
                 latestOnItemClick.value(item)
             }
         }
