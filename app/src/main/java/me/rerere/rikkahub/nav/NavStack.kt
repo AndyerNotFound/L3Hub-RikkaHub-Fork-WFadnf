@@ -37,6 +37,31 @@ object NavStack {
     /** 整条栈换成一页（换会话、清空历史）。 */
     fun replaceAll(screen: Screen): List<Screen> = listOf(screen)
 
+    /**
+     * 从侧边栏往它里面点开一页。
+     *
+     * 侧边栏是**入口**，不是一层：从它进设置、历史、助手这些页时，
+     * 侧边栏本身要从历史里退出。否则返回要按两次——先回到侧边栏、再回到聊天，
+     * 而同一个设置页如果从聊天页直接进去，返回只要按一次，两条路径行为不一致。
+     *
+     * 规则：
+     * - 栈顶是侧边栏 → 先弹掉它再入栈（`[Chat, Sidebar]` → `[Chat, Setting]`）
+     * - 栈顶不是侧边栏 → 与普通 [push] 一致
+     *
+     * 栈底不动：侧边栏不会成为栈底，它总是压在某一页之上。
+     */
+    fun pushFromSidebar(
+        stack: List<Screen>,
+        screen: Screen,
+        singleTop: Boolean = false,
+    ): List<Screen> {
+        val withoutSidebar =
+            if (stack.lastOrNull() is Screen.Sidebar) stack.dropLast(1) else stack
+        // 弹完只剩空栈时退回原栈：栈底那一页是退出边界，不能被这一条规则吃掉
+        val base = withoutSidebar.ifEmpty { stack }
+        return push(base, screen, singleTop)
+    }
+
     /** 弹一层；栈底不动。 */
     fun pop(stack: List<Screen>): List<Screen> = if (stack.size > 1) stack.dropLast(1) else stack
 }

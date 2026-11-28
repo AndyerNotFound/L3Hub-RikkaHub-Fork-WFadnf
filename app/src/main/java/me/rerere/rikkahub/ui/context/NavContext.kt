@@ -23,6 +23,7 @@ interface Navigator {
  * 唯一的导航器。所有栈操作都落在同一条历史上：
  *
  * - 普通前进：尾部加一页（[NavStack.push]，[NavigateOptionsBuilder.launchSingleTop] 时压掉重复）
+ * - 从侧边栏前进：先把侧边栏弹掉再入栈（[NavStack.pushFromSidebar]）—— 侧边栏是入口不是一层
  * - 换分区 / 原地重进：先退到目标再入栈（[NavStack.popUpTo]）
  * - 清空重建：整条历史换成一页
  */
@@ -32,16 +33,22 @@ class AppNavigator(private val component: RootComponent) : Navigator {
         val options = NavigateOptionsBuilder().apply(builder)
         component.navigate { current ->
             val target = options.popUpToScreen
-            if (target != null) {
-                NavStack.popUpTo(
+            when {
+                target != null -> NavStack.popUpTo(
                     stack = current,
                     target = target,
                     inclusive = options.popUpToInclusive,
                     screen = screen,
                     singleTop = options.launchSingleTop,
                 )
-            } else {
-                NavStack.push(current, screen, options.launchSingleTop)
+
+                // 从侧边栏往它里面点开一页：侧边栏是入口不是一层，要从历史里退出。
+                // 否则「聊天→侧边栏→设置」返回要按两次，而「聊天→设置」只要按一次
+                else -> NavStack.pushFromSidebar(
+                    stack = current,
+                    screen = screen,
+                    singleTop = options.launchSingleTop,
+                )
             }
         }
     }
