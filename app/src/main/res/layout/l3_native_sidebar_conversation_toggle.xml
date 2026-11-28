@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  多选态下的一条会话：整行是一颗 Outline Toggle 按钮。
+
+  为什么用 MaterialButton 而不是自己拼背景：它是 M3 的 outlined button，
+  描边、选中态换底色、涟漪都由样式管，只需要在代码里按 checked 换图标。
+
+  注意：不用 `checkedIcon` —— 那是 MaterialCardView 的属性，MaterialButton 没有。
+  选中/未选中只靠代码换 `setIconResource`，底色由 `checked` 状态走样式里的
+  checkedBackgroundTint（见 NativeSidebarAdapter）。
+
+  尺寸与普通会话行对齐（同高、同左右缩进），切换多选时列表不会跳。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/l3_native_toggle_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="2dp">
+
+  <com.google.android.material.button.MaterialButton
+      android:id="@+id/l3_native_toggle_button"
+      style="@style/Widget.Material3.Button.OutlinedButton.Icon"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:minHeight="40dp"
+      android:gravity="start|center_vertical"
+      android:insetTop="0dp"
+      android:insetBottom="0dp"
+      android:maxLines="1"
+      android:ellipsize="end"
+      android:textAppearance="?attr/textAppearanceBodyMedium"
+      android:checkable="true"
+      app:icon="@drawable/l3_native_ic_toggle_off"
+      app:iconGravity="textStart"
+      app:iconPadding="8dp"
+      app:iconSize="16dp"
+      app:iconTint="?attr/colorOnSurfaceVariant"
+      app:strokeColor="?attr/colorOutline"
+      app:strokeWidth="1dp"
+      app:cornerRadius="20dp"
+      app:toggleCheckedStateOnClick="false" />
+</FrameLayout>

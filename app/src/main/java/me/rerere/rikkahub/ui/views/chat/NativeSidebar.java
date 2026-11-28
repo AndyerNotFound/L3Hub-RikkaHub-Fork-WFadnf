@@ -5,6 +5,7 @@ import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.util.AttributeSet;
 import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -86,6 +87,10 @@ public final class NativeSidebar extends LinearLayout {
         void onSortClick(@NonNull View anchorView);
         void onAssistantPickerClick(@NonNull View anchorView);
         void onAssistantSettingClick();
+        /** 退出多选模式。 */
+        void onExitSelection();
+        /** 多选态下的批量删除。参数是选中的会话 id。 */
+        void onDeleteSelected(@NonNull List<String> conversationIds);
     }
 
     public static final String SLOT_UPDATE_CARD = "update_card";
@@ -123,6 +128,10 @@ public final class NativeSidebar extends LinearLayout {
     @Nullable private LinearLayout folderChips;
     @Nullable private View updateCardSlot;
     @Nullable private View backupCardSlot;
+    @Nullable private LinearLayout selectionBar;
+    @Nullable private TextView selectionCount;
+    /** 非多选态时顶栏里那几块，多选时整组隐藏。 */
+    @Nullable private View normalHeaderGroup;
 
     /** 当前选中的文件夹 id，null 表示「默认（全部）」。 */
     @Nullable private String selectedFolderId;
@@ -200,8 +209,36 @@ public final class NativeSidebar extends LinearLayout {
         adapter.submitList(rows);
     }
 
+    /**
+     * 进出多选模式。
+     *
+     * <p>顶栏在多选时换成一条工具条（选中数 + 删除 + 取消），
+     * 正常那几块整组让位 —— 否则侧栏上半截全是入口，选中的行被挤到看不见。
+     */
     public void setSelectionMode(boolean enabled) {
         adapter.setSelectionMode(enabled);
+        if (selectionBar != null) {
+            selectionBar.setVisibility(enabled ? VISIBLE : GONE);
+        }
+        setNormalHeaderVisible(!enabled);
+        if (enabled) updateSelectionCount(0);
+    }
+
+    /** 多选工具条上的计数。 */
+    public void updateSelectionCount(int count) {
+        if (selectionCount == null) return;
+        selectionCount.setText(getContext().getString(
+                R.string.chat_page_selected_count, count));
+    }
+
+    /** 顶栏里除工具条之外的那几块一起显隐。 */
+    private void setNormalHeaderVisible(boolean visible) {
+        if (header == null) return;
+        for (int i = 0; i < header.getChildCount(); i++) {
+            View child = header.getChildAt(i);
+            if (child == selectionBar) continue;
+            child.setVisibility(visible ? VISIBLE : GONE);
+        }
     }
 
     public void setCurrentConversationId(@Nullable String id) {
@@ -292,6 +329,53 @@ public final class NativeSidebar extends LinearLayout {
 
     private void buildHeader() {
         header.removeAllViews();
+
+        // 多选工具条：进入多选后才出现，顶栏其余部分让位
+        selectionBar = new LinearLayout(getContext());
+        selectionBar.setOrientation(HORIZONTAL);
+        selectionBar.setGravity(Gravity.CENTER_VERTICAL);
+        selectionBar.setVisibility(GONE);
+        selectionBar.setPadding(dp(8), dp(6), dp(8), dp(6));
+
+        TextView count = new TextView(getContext());
+        count.setTextAppearance(
+                com.google.android.material.R.style.TextAppearance_Material3_TitleMedium);
+        count.setTextColor(colorAttr(com.google.android.material.R.attr.colorOnSurface));
+        selectionCount = count;
+        selectionBar.addView(count, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView delete = new TextView(getContext());
+        delete.setText(getContext().getString(R.string.chat_page_delete));
+        delete.setTextAppearance(
+                com.google.android.material.R.style.TextAppearance_Material3_LabelLarge);
+        delete.setTextColor(colorAttr(com.google.android.material.R.attr.colorError));
+        delete.setPadding(dp(12), dp(6), dp(12), dp(6));
+        delete.setOnClickListener(v -> {
+            if (listener == null) return;
+            List<String> ids = new ArrayList<>();
+            for (SidebarRow row : adapter.snapshot()) {
+                if (row.kind == SidebarRow.Kind.CONVERSATION && row.checked) {
+                    ids.add(row.conversationId);
+                }
+            }
+            listener.onDeleteSelected(ids);
+        });
+        selectionBar.addView(delete);
+
+        TextView cancel = new TextView(getContext());
+        cancel.setText(getContext().getString(R.string.chat_page_cancel));
+        cancel.setTextAppearance(
+                com.google.android.material.R.style.TextAppearance_Material3_LabelLarge);
+        cancel.setTextColor(colorAttr(
+                com.google.android.material.R.attr.colorOnSurfaceVariant));
+        cancel.setPadding(dp(12), dp(6), dp(12), dp(6));
+        cancel.setOnClickListener(v -> {
+            if (listener != null) listener.onExitSelection();
+        });
+        selectionBar.addView(cancel);
+
+        header.addView(selectionBar, matchWrap());
 
         // 更新提醒：整块交给 Compose，这里只留一个空壳
         updateCardSlot = new FrameLayout(getContext());
@@ -663,6 +747,13 @@ public final class NativeSidebar extends LinearLayout {
         }
 
         @Override
+        public void onConversationToggle(@NonNull String conversationId, boolean checked) {
+            if (conversationClickListener != null) {
+                conversationClickListener.onConversationToggle(conversationId, checked);
+            }
+        }
+
+        @Override
         public void onHeaderClick(@NonNull SidebarRow row) {
             if (conversationClickListener != null) {
                 conversationClickListener.onHeaderClick(row);
@@ -698,6 +789,8 @@ public final class NativeSidebar extends LinearLayout {
     public interface ConversationListListener {
         void onConversationClick(@NonNull String conversationId);
         void onConversationLongClick(@NonNull View rowView, @NonNull SidebarRow row);
+        /** 多选态下点一条会话 —— 切换勾选，不导航。 */
+        void onConversationToggle(@NonNull String conversationId, boolean checked);
         void onHeaderClick(@NonNull SidebarRow row);
         void onFolderHeaderLongClick(@NonNull View rowView, @NonNull SidebarRow row);
     }

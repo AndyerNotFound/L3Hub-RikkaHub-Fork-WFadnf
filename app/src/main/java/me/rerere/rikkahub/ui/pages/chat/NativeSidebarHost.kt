@@ -101,6 +101,10 @@ internal fun NativeSidebarHost(
 
     // 长按某一行时弹出的操作菜单。状态放在这一层：菜单不在 RecyclerView 里，
     // 跟着行一起回收会丢
+    // 多选模式：进入后每行变成 Outline Toggle 按钮
+    var selectionMode by remember { mutableStateOf(false) }
+    var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+
     var menuRow by remember { mutableStateOf<SidebarRow?>(null) }
     var menuAnchor by remember { mutableStateOf<Rect?>(null) }
     var renameTarget by remember { mutableStateOf<Conversation?>(null) }
@@ -111,12 +115,14 @@ internal fun NativeSidebarHost(
         collapsedFolders,
         conversationJobs,
         currentConversationId,
+        selectedIds,
     ) {
         buildSidebarRows(
             items = verticalItems,
             collapsedDates = collapsedDates,
             collapsedFolders = collapsedFolders,
             runningIds = conversationJobs.keys.map { it.toString() }.toSet(),
+            checkedIds = selectedIds,
             defaultLabel = appContext.getString(R.string.chat_page_folder_default),
             pinnedLabel = appContext.getString(R.string.pinned_chats),
         )
@@ -174,6 +180,14 @@ internal fun NativeSidebarHost(
                         menuAnchor = rowView.windowRect()
                     }
 
+                    override fun onConversationToggle(
+                        conversationId: String,
+                        checked: Boolean,
+                    ) {
+                        selectedIds = if (checked) selectedIds + conversationId
+                        else selectedIds - conversationId
+                    }
+
                     override fun onHeaderClick(row: SidebarRow) {
                         when (row.kind) {
                             SidebarRow.Kind.FOLDER_HEADER ->
@@ -220,6 +234,31 @@ internal fun NativeSidebarHost(
                     override fun onSortClick(anchorView: View) = Unit
                     override fun onAssistantPickerClick(anchorView: View) = Unit
 
+                    override fun onExitSelection() {
+                        selectionMode = false
+                        selectedIds = emptySet()
+                    }
+
+                    override fun onDeleteSelected(conversationIds: List<String>) {
+                        if (conversationIds.isEmpty()) return
+                        scope.launch {
+                            conversationIds.forEach { id ->
+                                val conversation = verticalItems
+                                    .filterIsInstance<ConversationListItem.Item>()
+                                    .firstOrNull { it.conversation.id.toString() == id }
+                                    ?.conversation
+                                if (conversation != null) {
+                                    listVm.deleteConversation(conversation).join()
+                                }
+                            }
+                            selectionMode = false
+                            selectedIds = emptySet()
+                            if (conversationIds.any { it == currentConversationId?.toString() }) {
+                                navigateToChatPage(navController)
+                            }
+                        }
+                    }
+
                     override fun onAssistantSettingClick() {
                         navController.navigate(
                             Screen.AssistantDetail(id = settings.assistantId.toString())
@@ -231,6 +270,8 @@ internal fun NativeSidebarHost(
         update = { sidebar ->
             sidebar.setAnimationsEnabled(animationsEnabled)
             sidebar.setTransformDuration(duration)
+            sidebar.setSelectionMode(selectionMode)
+            sidebar.updateSelectionCount(selectedIds.size)
             sidebar.submitRows(rows)
             sidebar.setCurrentConversationId(currentConversationId?.toString())
             sidebar.setUser(
@@ -258,6 +299,7 @@ internal fun NativeSidebarHost(
             menuRow = null
         } else {
             val labels = SidebarMenuLabels(
+                selectMultiple = appContext.getString(R.string.chat_page_select_multiple),
                 pin = appContext.getString(
                     if (conversation.isPinned) R.string.unpin_chat else R.string.pin_chat
                 ),
@@ -270,12 +312,18 @@ internal fun NativeSidebarHost(
                 onDismiss = { menuRow = null },
                 anchorBounds = menuAnchor,
                 icons = listOf(
+                    HugeIcons.CheckmarkCircle02,
                     HugeIcons.Pin,
                     HugeIcons.PencilEdit01,
                     HugeIcons.Refresh01,
                     HugeIcons.TransactionHistory,
                 ),
             ) {
+                // 进多选：把这一条勾上，整张列表换成 toggle 行
+                addItem(labels.selectMultiple, null, false) {
+                    selectionMode = true
+                    selectedIds = setOf(target.conversationId)
+                }
                 addItem(labels.pin, null, false) { listVm.updatePinnedStatus(conversation) }
                 addItem(labels.rename, null, false) { renameTarget = conversation }
                 addItem(labels.regenerate, null, false) { listVm.generateTitle(conversation, true) }
@@ -307,6 +355,7 @@ internal fun NativeSidebarHost(
 
 /** 菜单文案一次读齐：content lambda 在 LaunchedEffect 里跑，那里没有 Composition。 */
 private data class SidebarMenuLabels(
+    val selectMultiple: String,
     val pin: String,
     val rename: String,
     val regenerate: String,
@@ -368,11 +417,16 @@ private fun buildSidebarRows(
     collapsedDates: Set<LocalDate>,
     collapsedFolders: Set<String>,
     runningIds: Set<String>,
+    checkedIds: Set<String>,
     defaultLabel: String,
     pinnedLabel: String,
 ): List<SidebarRow> {
     val rows = ArrayList<SidebarRow>(items.size)
+    // 当前是否处在收起的段里。收起时只跳过它下面的会话，标题本身留着 ——
+    // 否则收起来就找不到展开它的入口了
     var skipSection = false
+    // 当前所在段的层级：文件夹标题 0，它下面的会话 1；有日期段时日期 1、会话 2
+    var sectionDepth = 0
 
     items.forEach { item ->
         when (item) {
@@ -380,10 +434,13 @@ private fun buildSidebarRows(
                 val key = item.folderId?.toString()
                 val collapsed = key != null && key in collapsedFolders
                 skipSection = collapsed
+                sectionDepth = 0
+                // 会话数：数后面属于这一段的会话，直到下一个文件夹标题
+                val count = countConversationsInSection(items, item)
                 rows += SidebarRow.folderHeader(
                     key = "f:" + (key ?: "unfiled"),
                     label = item.label.ifBlank { defaultLabel },
-                    count = 0,
+                    count = count,
                     collapsed = collapsed,
                     folderId = key,
                 )
@@ -392,6 +449,8 @@ private fun buildSidebarRows(
             is ConversationListItem.DateHeader -> {
                 val collapsed = item.date in collapsedDates
                 skipSection = collapsed
+                // 日期段嵌在文件夹段里，所以比文件夹标题深一级
+                sectionDepth = 1
                 rows += SidebarRow.dateHeader(
                     key = "d:" + item.date.toString(),
                     label = item.label,
@@ -402,23 +461,46 @@ private fun buildSidebarRows(
 
             ConversationListItem.PinnedHeader -> {
                 skipSection = false
+                // 置顶段与日期段同级：都在文件夹段里面
+                sectionDepth = 1
                 rows += SidebarRow.pinnedHeader(pinnedLabel)
             }
 
             is ConversationListItem.Item -> {
                 if (skipSection) return@forEach
                 val conversation = item.conversation
+                val id = conversation.id.toString()
                 rows += SidebarRow.conversation(
-                    conversationId = conversation.id.toString(),
+                    conversationId = id,
                     title = conversation.title.ifBlank { defaultLabel },
                     pinned = conversation.isPinned,
-                    loading = conversation.id.toString() in runningIds,
-                    checked = false,
+                    loading = id in runningIds,
+                    checked = id in checkedIds,
+                    // 会话比它所属的标题再深一级
+                    depth = sectionDepth + 1,
                 )
             }
         }
     }
     return rows
+}
+
+/** 数一个文件夹段里有多少条会话：从它后面数起，遇到下一个文件夹标题就停。 */
+private fun countConversationsInSection(
+    items: List<ConversationListItem>,
+    header: ConversationListItem.FolderHeader,
+): Int {
+    val start = items.indexOf(header)
+    if (start < 0) return 0
+    var count = 0
+    for (i in start + 1 until items.size) {
+        when (items[i]) {
+            is ConversationListItem.FolderHeader -> return count
+            is ConversationListItem.Item -> count++
+            else -> Unit
+        }
+    }
+    return count
 }
 
 /** 图标 key 到 HugeIcons 的映射。key 由 [NativeSidebar] 决定。 */

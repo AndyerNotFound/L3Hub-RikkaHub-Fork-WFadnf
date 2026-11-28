@@ -38,6 +38,12 @@ public final class NativeSidebarAdapter
         void onConversationClick(@NonNull String conversationId);
         /** 长按了一条会话 —— 开操作菜单。参数是行本身，菜单要拿它的矩形当起点。 */
         void onConversationLongClick(@NonNull View rowView, @NonNull SidebarRow row);
+        /**
+         * 多选态下点了一条会话 —— 切换勾选，不导航。
+         *
+         * @param checked 这一下之后应该是勾上还是取消
+         */
+        void onConversationToggle(@NonNull String conversationId, boolean checked);
         /** 点了分区标题（折叠 / 展开）。 */
         void onHeaderClick(@NonNull SidebarRow row);
         /** 长按了文件夹标题 —— 开编辑菜单。 */
@@ -69,7 +75,9 @@ public final class NativeSidebarAdapter
     public void setSelectionMode(boolean enabled) {
         if (selectionMode == enabled) return;
         selectionMode = enabled;
-        notifyItemRangeChanged(0, rows.size(), PAYLOAD_SELECTION);
+        // 换 viewType 只能整表重绘：RecyclerView 不支持同一个位置换 holder 类型，
+        // 用 payload 局部更新会留下旧布局
+        notifyDataSetChanged();
     }
 
     public void setCurrentConversationId(@Nullable String id) {
@@ -109,14 +117,29 @@ public final class NativeSidebarAdapter
 
     @Override
     public int getItemViewType(int position) {
-        return rows.get(position).kind.ordinal();
+        SidebarRow row = rows.get(position);
+        // 多选态下会话行换成 Outline Toggle 按钮，是另一种布局，
+        // 所以 viewType 要分开 —— 否则 RecyclerView 会复用旧的 ViewHolder，
+        // 布局对不上
+        if (row.kind == SidebarRow.Kind.CONVERSATION && selectionMode) {
+            return VIEW_TYPE_CONVERSATION_TOGGLE;
+        }
+        return row.kind.ordinal();
     }
+
+    /** 多选态的会话行。取一个不和 {@link SidebarRow.Kind#ordinal()} 撞的值。 */
+    private static final int VIEW_TYPE_CONVERSATION_TOGGLE = 100;
 
     @NonNull
     @Override
     public RowHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        SidebarRow.Kind kind = SidebarRow.Kind.values()[viewType];
         LayoutInflater inflater = LayoutInflater.from(parent.getContext());
+        if (viewType == VIEW_TYPE_CONVERSATION_TOGGLE) {
+            View view = inflater.inflate(
+                    R.layout.l3_native_sidebar_conversation_toggle, parent, false);
+            return new RowHolder(view, SidebarRow.Kind.CONVERSATION);
+        }
+        SidebarRow.Kind kind = SidebarRow.Kind.values()[viewType];
         View view = kind == SidebarRow.Kind.CONVERSATION
                 ? inflater.inflate(R.layout.l3_native_sidebar_conversation, parent, false)
                 : inflater.inflate(R.layout.l3_native_sidebar_section_header, parent, false);
@@ -170,6 +193,10 @@ public final class NativeSidebarAdapter
         @Nullable private final View loading;
         @Nullable private final LinearLayout conversationRoot;
 
+        // 多选态的会话行
+        @Nullable private final com.google.android.material.button.MaterialButton toggle;
+        @Nullable private final View toggleRoot;
+
         // 标题行
         @Nullable private final FrameLayout sectionIcon;
         @Nullable private final TextView sectionLabel;
@@ -181,6 +208,9 @@ public final class NativeSidebarAdapter
             super(itemView);
             this.kind = kind;
             if (kind == SidebarRow.Kind.CONVERSATION) {
+                // 两种布局：普通行与多选态的 toggle 行。按 id 探测实际是哪一种
+                toggle = itemView.findViewById(R.id.l3_native_toggle_button);
+                toggleRoot = itemView.findViewById(R.id.l3_native_toggle_root);
                 conversationRoot = itemView.findViewById(R.id.l3_native_conv_root);
                 check = itemView.findViewById(R.id.l3_native_conv_check);
                 title = itemView.findViewById(R.id.l3_native_conv_title);
@@ -202,6 +232,8 @@ public final class NativeSidebarAdapter
                 title = null;
                 pin = null;
                 loading = null;
+                toggle = null;
+                toggleRoot = null;
             }
         }
 
@@ -214,9 +246,15 @@ public final class NativeSidebarAdapter
         }
 
         private void bindConversation(@NonNull SidebarRow row) {
+            // 多选态：整行是一颗 Outline Toggle 按钮
+            if (toggle != null) {
+                bindConversationToggle(row);
+                return;
+            }
             if (title == null || conversationRoot == null) return;
             title.setText(row.title);
 
+            applyIndent(conversationRoot, row.depth);
             bindCheck(row);
             bindCurrent(row);
 
@@ -241,6 +279,65 @@ public final class NativeSidebarAdapter
                 if (listener != null) listener.onConversationLongClick(v, row);
                 return true;
             });
+        }
+
+        /**
+         * 多选态的一行：Outline Toggle 按钮。
+         *
+         * <p>勾选状态由 MaterialButton 自己的 checked 管，图标与底色跟着
+         * `checkedIcon` / `checkedIconTint` 切换，这里只负责把状态写进去。
+         */
+        private void bindConversationToggle(@NonNull SidebarRow row) {
+            if (toggle == null || toggleRoot == null) return;
+
+            toggle.setText(row.title);
+            toggle.setChecked(row.checked);
+            // 图标按勾选态换：MaterialButton 没有 checkedIcon 属性
+            // （那是 MaterialCardView 的），只能代码换
+            toggle.setIconResource(row.checked
+                    ? R.drawable.l3_native_ic_toggle_on
+                    : R.drawable.l3_native_ic_toggle_off);
+            toggle.setIconTint(android.content.res.ColorStateList.valueOf(row.checked
+                    ? colorAttr(com.google.android.material.R.attr.colorOnPrimary)
+                    : colorAttr(com.google.android.material.R.attr.colorOnSurfaceVariant)));
+            // 选中时底色换主色，未选中透明 —— 与 M3 的 toggle 观感一致
+            toggle.setBackgroundTintList(android.content.res.ColorStateList.valueOf(row.checked
+                    ? colorAttr(com.google.android.material.R.attr.colorPrimary)
+                    : android.graphics.Color.TRANSPARENT));
+            toggle.setTextColor(row.checked
+                    ? colorAttr(com.google.android.material.R.attr.colorOnPrimary)
+                    : colorAttr(com.google.android.material.R.attr.colorOnSurface));
+            applyIndent(toggleRoot, row.depth);
+
+            // 点击切换勾选，不直接进会话 —— 多选态下点一行是选它
+            toggle.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onConversationToggle(row.conversationId, !row.checked);
+                }
+            });
+            // 长按仍然开操作菜单，与其他状态一致
+            toggle.setOnLongClickListener(v -> {
+                if (listener != null) listener.onConversationLongClick(v, row);
+                return true;
+            });
+        }
+
+        /**
+         * 按层级加左缩进。
+         *
+         * <p>层级靠缩进表达，不是只靠折叠箭头：收起时那一层还在，
+         * 看缩进就知道它属于哪一段。
+         */
+        private void applyIndent(@NonNull View view, int depth) {
+            int base = dp(12);
+            int step = dp(16);
+            int start = base + Math.max(0, depth) * step;
+            view.setPaddingRelative(
+                    start,
+                    view.getPaddingTop(),
+                    view.getPaddingEnd(),
+                    view.getPaddingBottom()
+            );
         }
 
         void bindCheck(@NonNull SidebarRow row) {
@@ -292,6 +389,7 @@ public final class NativeSidebarAdapter
             if (sectionLabel == null || sectionRoot == null) return;
 
             sectionLabel.setText(row.label);
+            applyIndent(sectionRoot, row.depth);
 
             if (sectionCount != null) {
                 if (row.count > 0) {

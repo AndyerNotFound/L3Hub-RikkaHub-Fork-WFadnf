@@ -59,6 +59,15 @@ public final class SidebarRow {
     public final boolean checked;
     // endregion
 
+    /**
+     * 缩进层级。
+     *
+     * <p>文件夹标题是 0；它下面的日期标题是 1，日期下面的会话是 2；
+     * 没有日期分组时（置顶段）会话是 1。层级靠缩进表达，
+     * 不是只靠折叠箭头 —— 收起时那一层仍然在，看缩进就知道归属。
+     */
+    public final int depth;
+
     private SidebarRow(
             @NonNull Kind kind,
             @NonNull String key,
@@ -71,7 +80,8 @@ public final class SidebarRow {
             @NonNull String title,
             boolean pinned,
             boolean loading,
-            boolean checked
+            boolean checked,
+            int depth
     ) {
         this.kind = kind;
         this.key = key;
@@ -85,6 +95,7 @@ public final class SidebarRow {
         this.pinned = pinned;
         this.loading = loading;
         this.checked = checked;
+        this.depth = depth;
     }
 
     public static SidebarRow folderHeader(
@@ -96,7 +107,7 @@ public final class SidebarRow {
     ) {
         return new SidebarRow(
                 Kind.FOLDER_HEADER, key, label, count, collapsed, folderId, null,
-                "", "", false, false, false);
+                "", "", false, false, false, 0);
     }
 
     public static SidebarRow dateHeader(
@@ -107,13 +118,13 @@ public final class SidebarRow {
     ) {
         return new SidebarRow(
                 Kind.DATE_HEADER, key, label, 0, collapsed, null, isoDate,
-                "", "", false, false, false);
+                "", "", false, false, false, 1);
     }
 
     public static SidebarRow pinnedHeader(@NonNull String label) {
         return new SidebarRow(
                 Kind.PINNED_HEADER, "pinned", label, 0, false, null, null,
-                "", "", false, false, false);
+                "", "", false, false, false, 0);
     }
 
     public static SidebarRow conversation(
@@ -121,11 +132,12 @@ public final class SidebarRow {
             @NonNull String title,
             boolean pinned,
             boolean loading,
-            boolean checked
+            boolean checked,
+            int depth
     ) {
         return new SidebarRow(
                 Kind.CONVERSATION, "c:" + conversationId, title, 0, false, null, null,
-                conversationId, title, pinned, loading, checked);
+                conversationId, title, pinned, loading, checked, depth);
     }
 
     /** 折叠后不画这一行（连同它下面的会话一起由桥接层过滤掉）。 */
