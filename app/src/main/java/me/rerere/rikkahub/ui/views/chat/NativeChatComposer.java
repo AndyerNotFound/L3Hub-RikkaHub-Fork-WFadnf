@@ -527,10 +527,23 @@ public final class NativeChatComposer extends LinearLayout {
         editChip.setChipIconTint(ColorStateList.valueOf(theme.onSecondaryContainer));
         editChip.setCloseIconTint(ColorStateList.valueOf(theme.onSecondaryContainer));
         field.setTextColor(theme.onSurface);
-        // 底色与指示线不覆盖：FilledBox 的默认值就是 M3 的 Filled 外观
-        // （surfaceContainerHighest + 1dp/2dp active indicator）。
-        // 早先这里设过 Color.TRANSPARENT，那等于把 Filled 的容器抹掉，
-        // 剩下的只是一块无框文字区。
+        // Filled 的容器色与指示线也走运行期调色板。
+        //
+        // Theme.L3Hub.NativeChat 是静态的 Material3 主题（baseline 紫灰配色），
+        // 拿不到用户在 Compose 里选的 palette；不显式接一遍，输入框就会是
+        // 一套和界面无关的颜色 —— 之前底色被写死 TRANSPARENT，这条接线断着也看不出来。
+        //
+        // 两个值对应 M3 的 token：
+        //   container = m3_comp_filled_text_field_container_color → surfaceContainerHighest
+        //   indicator = m3_comp_outlined_text_field_outline_color → outline（聚焦 primary）
+        inputLayout.setBoxBackgroundColor(theme.surfaceContainerHighest);
+        inputLayout.setBoxStrokeColorStateList(new ColorStateList(
+                new int[][] {
+                        new int[] {android.R.attr.state_focused},
+                        new int[] {}
+                },
+                new int[] {theme.primary, theme.outline}
+        ));
         applyInputTextColors(theme);
         applySendColors();
         applyAsrColors();

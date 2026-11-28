@@ -48,7 +48,8 @@ internal fun nativeChatTheme(): NativeChatTheme {
             scheme.tertiaryContainer.toArgb(), scheme.onTertiaryContainer.toArgb(),
             scheme.surface.toArgb(), scheme.onSurface.toArgb(), scheme.onSurfaceVariant.toArgb(),
             scheme.surfaceContainerLow.toArgb(), scheme.surfaceContainerHigh.toArgb(),
-            scheme.surfaceContainerHighest.toArgb(), scheme.outlineVariant.toArgb(),
+            scheme.surfaceContainerHighest.toArgb(), scheme.outline.toArgb(),
+            scheme.outlineVariant.toArgb(),
             scheme.errorContainer.toArgb(), scheme.onErrorContainer.toArgb(),
         )
     }

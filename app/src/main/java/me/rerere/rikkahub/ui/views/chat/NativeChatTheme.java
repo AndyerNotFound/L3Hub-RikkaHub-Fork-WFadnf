@@ -24,6 +24,7 @@ public final class NativeChatTheme {
     public final int surfaceContainerLow;
     public final int surfaceContainerHigh;
     public final int surfaceContainerHighest;
+    public final int outline;
     public final int outlineVariant;
     public final int errorContainer;
     public final int onErrorContainer;
@@ -32,7 +33,7 @@ public final class NativeChatTheme {
             int onPrimaryContainer, int secondaryContainer, int onSecondaryContainer,
             int tertiaryContainer, int onTertiaryContainer, int surface, int onSurface,
             int onSurfaceVariant, int surfaceContainerLow, int surfaceContainerHigh,
-            int surfaceContainerHighest, int outlineVariant, int errorContainer,
+            int surfaceContainerHighest, int outline, int outlineVariant, int errorContainer,
             int onErrorContainer) {
         this.primary = primary;
         this.onPrimary = onPrimary;
@@ -48,6 +49,7 @@ public final class NativeChatTheme {
         this.surfaceContainerLow = surfaceContainerLow;
         this.surfaceContainerHigh = surfaceContainerHigh;
         this.surfaceContainerHighest = surfaceContainerHighest;
+        this.outline = outline;
         this.outlineVariant = outlineVariant;
         this.errorContainer = errorContainer;
         this.onErrorContainer = onErrorContainer;
