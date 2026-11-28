@@ -8,6 +8,7 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewParent;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -167,6 +168,8 @@ public final class NativeSidebar extends LinearLayout {
     @Nullable private TextView selectionCount;
     /** 非多选态时顶栏里那几块，多选时整组隐藏。 */
     @Nullable private View normalHeaderGroup;
+    /** 用户头像位，整块交给 Compose。 */
+    @Nullable private FrameLayout avatarSlot;
 
     /** 当前选中的文件夹 id，null 表示「默认（全部）」。 */
     @Nullable private String selectedFolderId;
@@ -530,7 +533,7 @@ public final class NativeSidebar extends LinearLayout {
         user.findViewById(R.id.l3_native_user_name_row).setOnClickListener(v -> {
             if (listener != null) listener.onEditNickname();
         });
-        FrameLayout avatarSlot = user.findViewById(R.id.l3_native_user_avatar);
+        avatarSlot = user.findViewById(R.id.l3_native_user_avatar);
         avatarSlot.setTag(SLOT_USER_AVATAR);
         FrameLayout nameEdit = user.findViewById(R.id.l3_native_user_name_edit);
         bindIconNow(nameEdit, ICON_PENCIL, colorAttr(
@@ -740,6 +743,19 @@ public final class NativeSidebar extends LinearLayout {
      * <p>登记是为了 {@link #setIconBinder} 之后能重挂：绑定器通常在视图建好之后
      * 才设进来，那时这些容器还是空的。
      */
+    /**
+     * 挂上窗口后再补一次图标。
+     *
+     * <p>绑定器通常在建视图时设进来，那一刻容器还没挂窗口，ComposeView 也就还没
+     * 开始合成。晚一拍的补挂能兜住这类时序；重复调用是安全的 ——
+     * {@link #rebuildIcons()} 每次都先清空容器再挂。
+     */
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        rebuildIcons();
+    }
+
     private void bindIconNow(
             @Nullable ViewGroup container,
             @NonNull String iconKey,
@@ -768,13 +784,33 @@ public final class NativeSidebar extends LinearLayout {
         // 先摘掉已经不在视图树上的登记：文件夹条重建过、行被回收过都会留下死引用
         for (int i = iconSlots.size() - 1; i >= 0; i--) {
             IconSlot slot = iconSlots.get(i);
-            if (!slot.container.isAttachedToWindow()) {
+            if (!isSlotAlive(slot.container)) {
                 iconSlots.remove(i);
                 continue;
             }
             slot.container.removeAllViews();
             iconBinder.bindIcon(slot.container, slot.iconKey, slot.tint);
         }
+    }
+
+    /**
+     * 这个图标位是否还挂在侧边栏自己的视图树上。
+     *
+     * <p>不能拿 {@link View#isAttachedToWindow()} 判断。绑定器是 {@code AndroidView}
+     * 的 factory 里设进来的，那一刻整棵侧边栏还没挂上窗口，所有容器都返回 false ——
+     * 一重建就把登记全删了，顶栏、底栏、排序这些一次性的图标位再也补不回来。
+     *
+     * <p>真正要判断的是「死引用」：容器已经不在本 View 下面（文件夹条重建、
+     * 列表行回收）。顺着 parent 往上找到自己就算活着。
+     */
+    private boolean isSlotAlive(@NonNull View container) {
+        ViewParent parent = container.getParent();
+        while (parent != null) {
+            if (parent == this) return true;
+            if (!(parent instanceof View)) return false;
+            parent = parent.getParent();
+        }
+        return false;
     }
 
     /**
@@ -786,6 +822,10 @@ public final class NativeSidebar extends LinearLayout {
      */
     private void rebuildSlots() {
         if (slotBinder == null) return;
+        if (avatarSlot != null) {
+            avatarSlot.removeAllViews();
+            slotBinder.bindSlot(avatarSlot, SLOT_USER_AVATAR);
+        }
         if (updateCardSlot instanceof ViewGroup) {
             ((ViewGroup) updateCardSlot).removeAllViews();
             slotBinder.bindSlot((ViewGroup) updateCardSlot, SLOT_UPDATE_CARD);

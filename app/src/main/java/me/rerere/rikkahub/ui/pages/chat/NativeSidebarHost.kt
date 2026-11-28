@@ -149,6 +149,12 @@ internal fun NativeSidebarHost(
                     setIconBinder { container, iconKey, tint ->
                         container.addView(
                             ComposeView(container.context).apply {
+                                // 图标这个 ComposeView 是本层 new 出来的，还没进视图树，
+                                // 光靠向上找 owner 会在挂窗口那一拍拿不到 Recomposer，
+                                // 所以跟插槽一样显式把宿主那套搬进来
+                                hostView.findViewTreeLifecycleOwner()?.let(::setViewTreeLifecycleOwner)
+                                hostView.findViewTreeSavedStateRegistryOwner()
+                                    ?.let(::setViewTreeSavedStateRegistryOwner)
                                 setContent {
                                     Icon(
                                         imageVector = sidebarIcon(iconKey),
