@@ -4,7 +4,6 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.graphics.drawable.ColorDrawable;
-import android.graphics.drawable.Drawable;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -15,13 +14,14 @@ import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.TextView;
 
-import androidx.annotation.DrawableRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.transition.TransitionManager;
 
 import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.shape.CornerFamily;
+import com.google.android.material.shape.ShapeAppearanceModel;
 import com.google.android.material.transition.MaterialContainerTransform;
 
 import java.util.ArrayList;
@@ -442,16 +442,28 @@ public final class NativeSelectMenu {
         }
         if (x < margin) x = margin;
 
-        measured.setX(x);
-        measured.setY(y);
+        // 先让所有分组卡同宽，再设容器尺寸。
+        // 顺序很重要：alignGroupWidths 改的是子卡的 LayoutParams，
+        // 必须在父容器 measure 之前改，否则量出来的高度是旧宽度下的
+        alignGroupWidths(cardWidth);
+
         ViewGroup.LayoutParams lp = measured.getLayoutParams();
         lp.width = cardWidth;
         lp.height = cardHeight;
         measured.setLayoutParams(lp);
 
-        // 后续分组与第一组同宽：每张卡按 wrap 量出来的宽度可能不一样，
-        // 宽度不齐看起来像错位
-        alignGroupWidths(cardWidth);
+        // 显式走一遍测量与布局：改 LayoutParams 之后如果没有后续的
+        // requestLayout 周期，子卡还是按旧宽度画。
+        //
+        // 只用 layout() 不用 setX/setY —— 两者都会落到 layout()，
+        // 混着调后一次会覆盖前一次，位置会飘。
+        // 这里父容器是 Popup 根，铺满窗口且没有 padding，
+        // 所以窗口坐标可以直接当父容器内坐标用
+        measured.measure(
+                View.MeasureSpec.makeMeasureSpec(cardWidth, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(cardHeight, View.MeasureSpec.EXACTLY)
+        );
+        measured.layout(x, y, x + cardWidth, y + cardHeight);
     }
 
     /** 让所有分组卡同宽。第一张卡是容器变换的终点，宽度以它为准。 */
@@ -544,6 +556,12 @@ public final class NativeSelectMenu {
             groups.get(item.groupIndex).add(item);
         }
 
+        // 第一张卡的圆角也要按组数算：只有一组时四角 16dp，
+        // 多组时它是首组（上 16、下 8）。XML 里写死的 16dp 只适用于单组
+        if (card != null) {
+            applyGroupCorners(card, 0, groups.size());
+        }
+
         for (int g = 0; g < groups.size(); g++) {
             LinearLayout container = g == 0 ? itemContainer : createGroupContainer(g, groups.size());
             if (container == null) continue;
@@ -574,7 +592,7 @@ public final class NativeSelectMenu {
         groupCard.setStrokeColor(colorAttr(
                 com.google.android.material.R.attr.colorOutlineVariant));
         groupCard.setStrokeWidth(dp(1));
-        groupCard.setRadius(groupCornerRadius(groupIndex, groupCount));
+        applyGroupCorners(groupCard, groupIndex, groupCount);
 
         LinearLayout inner = new LinearLayout(context);
         inner.setOrientation(LinearLayout.VERTICAL);
@@ -588,12 +606,50 @@ public final class NativeSelectMenu {
         return inner;
     }
 
-    /** M3 的分组圆角：首组上大下小、末组上小下大、中间一致、单独一组四角大。 */
-    private float groupCornerRadius(int index, int count) {
-        if (count <= 1) return dp(16);
-        if (index == 0) return dp(16);
-        if (index == count - 1) return dp(16);
-        return dp(8);
+    /**
+     * 按 M3 的 {@code MenuDefaults.groupShape} 设四角圆角。
+     *
+     * <p>不能只用 {@code setRadius()} —— 那是四角同值，而 M3 的分组规则是
+     * 「朝外的一侧圆角大、朝内的一侧小」：
+     * <ul>
+     *   <li>只有一组：四角 16dp（{@code CornerValueLarge}）</li>
+     *   <li>首组：上 16、下 8（{@code CornerValueSmall}）</li>
+     *   <li>中间组：四角 8</li>
+     *   <li>末组：上 8、下 16</li>
+     * </ul>
+     */
+    private void applyGroupCorners(
+            @NonNull MaterialCardView target,
+            int index,
+            int count
+    ) {
+        float large = dp(16);
+        float small = dp(8);
+
+        float top;
+        float bottom;
+        if (count <= 1) {
+            top = large;
+            bottom = large;
+        } else if (index == 0) {
+            top = large;
+            bottom = small;
+        } else if (index == count - 1) {
+            top = small;
+            bottom = large;
+        } else {
+            top = small;
+            bottom = small;
+        }
+
+        ShapeAppearanceModel model = target.getShapeAppearanceModel()
+                .toBuilder()
+                .setTopLeftCorner(CornerFamily.ROUNDED, top)
+                .setTopRightCorner(CornerFamily.ROUNDED, top)
+                .setBottomLeftCorner(CornerFamily.ROUNDED, bottom)
+                .setBottomRightCorner(CornerFamily.ROUNDED, bottom)
+                .build();
+        target.setShapeAppearanceModel(model);
     }
 
     /** 往某个分组里放一项。 */
