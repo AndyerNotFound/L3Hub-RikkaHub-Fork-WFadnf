@@ -62,6 +62,8 @@ import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.model.FloatingBarItem
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
+import me.rerere.rikkahub.ui.theme.fadeEnter
+import me.rerere.rikkahub.ui.theme.fadeExit
 import me.rerere.ui.components.Tooltip
 import kotlin.math.roundToInt
 
@@ -189,13 +191,15 @@ internal fun ChatFloatingBar(
 
     val fadeSpec = rememberEffectsSpec<Float>()
     val boundsSpec = rememberSpatialSpec<Rect>()
+    val enterFade = fadeEnter()
+    val exitFade = fadeExit()
 
     // 整体显隐走 Fade：它只是「这一层在不在」的开关，
     // 位置不动，所以不做位移。容器变换管的是内部两个状态之间的长大/缩回。
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(fadeSpec),
-        exit = fadeOut(fadeSpec),
+        enter = enterFade,
+        exit = exitFade,
         modifier = modifier.fillMaxWidth(),
     ) {
         SharedTransitionLayout(modifier = Modifier.fillMaxWidth()) {

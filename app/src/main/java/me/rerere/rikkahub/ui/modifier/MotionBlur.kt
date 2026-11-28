@@ -50,10 +50,10 @@ import me.rerere.rikkahub.ui.theme.LocalMotionBlur
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberMotionBlurSpec
 import me.rerere.rikkahub.ui.theme.rememberOffsetSpec
-import me.rerere.rikkahub.ui.theme.rememberRevealEnter
-import me.rerere.rikkahub.ui.theme.rememberRevealEnterHorizontal
-import me.rerere.rikkahub.ui.theme.rememberRevealExit
-import me.rerere.rikkahub.ui.theme.rememberRevealExitHorizontal
+import me.rerere.rikkahub.ui.theme.revealEnter
+import me.rerere.rikkahub.ui.theme.revealEnterHorizontal
+import me.rerere.rikkahub.ui.theme.revealExit
+import me.rerere.rikkahub.ui.theme.revealExitHorizontal
 import me.rerere.rikkahub.ui.theme.rememberSizeSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
 import kotlin.math.roundToInt
@@ -133,8 +133,8 @@ fun MotionExpandCollapse(
     visible: Boolean,
     modifier: Modifier = Modifier,
     // 进出同侧：顶边固定，内容从顶边展开、往顶边收起
-    enter: EnterTransition = rememberRevealEnter(),
-    exit: ExitTransition = rememberRevealExit(),
+    enter: EnterTransition = revealEnter(),
+    exit: ExitTransition = revealExit(),
     maxBlurRadius: Dp = 6.dp,
     // 模糊与两个方向的位移共用一条曲线：收起与展开同参同时长，
     // 任何一侧拖在位移后面都会看成那一边的硬过渡。
@@ -185,8 +185,8 @@ fun MotionExpandCollapse(
 fun MotionExpandCollapse(
     visibleState: MutableTransitionState<Boolean>,
     modifier: Modifier = Modifier,
-    enter: EnterTransition = rememberRevealEnter(),
-    exit: ExitTransition = rememberRevealExit(),
+    enter: EnterTransition = revealEnter(),
+    exit: ExitTransition = revealExit(),
     maxBlurRadius: Dp = 6.dp,
     enterBlurSpec: AnimationSpec<Float> = rememberMotionBlurSpec(),
     exitBlurSpec: AnimationSpec<Float> = enterBlurSpec,
@@ -253,8 +253,8 @@ fun MotionExpandCollapseHorizontal(
     MotionExpandCollapse(
         visible = visible,
         modifier = modifier,
-        enter = rememberRevealEnterHorizontal(),
-        exit = rememberRevealExitHorizontal(),
+        enter = revealEnterHorizontal(),
+        exit = revealExitHorizontal(),
         maxBlurRadius = maxBlurRadius,
         content = content,
     )

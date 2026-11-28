@@ -1,9 +1,6 @@
 package me.rerere.rikkahub.ui.theme
 
-import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
@@ -12,13 +9,6 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.runtime.Composable
@@ -207,9 +197,9 @@ fun slideDurationMillis(): Int = when (LocalAnimationSpeed.current) {
 //                     协程里 animateTo 用 fixedMotionSpec(enabled, duration, easing)
 //   3. 状态动画    —— animate*AsState 的统一替代：motionFloatAsState / motionFastFloatAsState /
 //                     motionDpAsState / motionColorAsState；容器高度用 Modifier.motionContentSize()
-//   4. 组合过渡    —— 整块内容的进出场：rememberRevealEnter / rememberRevealExit（含横向）、
-//                     rememberFadeEnter / rememberFadeExit、rememberContentTransition；
-//                     带模糊的收放走 ui/modifier/MotionBlur.kt 里的 MotionExpandCollapse 等
+//   4. 组合过渡    —— 整块内容的进出场：见同目录的 Transitions.kt
+//                     （revealEnter / revealExit、fadeEnter / fadeExit、contentSwitch 等）；
+//                     带模糊的收放走 ui/modifier/MotionBlur.kt 里的 MotionExpandCollapse
 //
 // 四条约束：
 //   - 档位统一从 MaterialTheme.motionScheme 读，关闭动效时主题把 scheme 换成全 snap，
@@ -300,50 +290,6 @@ fun motionColorAsState(
 )
 
 /**
- * 收放式显隐的进场：淡入 + 高度展开。
- *
- * [expandFrom] 与 [rememberRevealExit] 的 `shrinkTowards` 必须取同一侧。
- * `expandVertically` / `shrinkVertically` 自己的默认值是 Bottom / Top，直接配对就会
- * 展开从底边长、收起往顶上缩，两端看着是两个动画。
- */
-@Composable
-fun rememberRevealEnter(
-    expandFrom: Alignment.Vertical = Alignment.Top,
-): EnterTransition = fadeIn(rememberEffectsSpec()) +
-    expandVertically(rememberSizeSpec(), expandFrom)
-
-/** 收放式显隐的退场，与 [rememberRevealEnter] 同参同侧。 */
-@Composable
-fun rememberRevealExit(
-    shrinkTowards: Alignment.Vertical = Alignment.Top,
-): ExitTransition = fadeOut(rememberEffectsSpec()) +
-    shrinkVertically(rememberSizeSpec(), shrinkTowards)
-
-/** 横向收放的进场，与 [rememberRevealExitHorizontal] 同参同侧。 */
-@Composable
-fun rememberRevealEnterHorizontal(
-    expandFrom: Alignment.Horizontal = Alignment.Start,
-): EnterTransition = fadeIn(rememberEffectsSpec()) +
-    expandHorizontally(rememberSizeSpec(), expandFrom)
-
-/** 横向收放的退场，与 [rememberRevealEnterHorizontal] 同参同侧。 */
-@Composable
-fun rememberRevealExitHorizontal(
-    shrinkTowards: Alignment.Horizontal = Alignment.Start,
-): ExitTransition = fadeOut(rememberEffectsSpec()) +
-    shrinkHorizontally(rememberSizeSpec(), shrinkTowards)
-
-/**
- * `AnimatedContent` 的默认内容切换：进出同一条曲线、同一时长。
- *
- * 官方默认是 `fadeIn() togetherWith fadeOut()`，两侧各取 `tween(220)` 的常量，
- * 不认档位；关闭动效时也会淡入淡出。
- */
-@Composable
-fun rememberContentTransition(): ContentTransform =
-    fadeIn(rememberEffectsSpec()) togetherWith fadeOut(rememberEffectsSpec())
-
-/**
  * [rememberFixedSpec] 的非组合版本：协程里 `animateTo(...)`、`snapTo(...)` 用。
  *
  * 协程里读不到 CompositionLocal，把 [LocalAnimationsEnabled] 在组合层读出来再传进来。
@@ -381,14 +327,6 @@ fun Modifier.motionContentSize(
     alignment = alignment,
     finishedListener = finishedListener,
 )
-
-/** 纯淡入：菜单、提示条、浮层这类不改变尺寸的显隐，与 [rememberFadeExit] 同参。 */
-@Composable
-fun rememberFadeEnter(): EnterTransition = fadeIn(rememberEffectsSpec())
-
-/** 纯淡出，与 [rememberFadeEnter] 同参。 */
-@Composable
-fun rememberFadeExit(): ExitTransition = fadeOut(rememberEffectsSpec())
 
 /**
  * 当前是否允许播放动画。

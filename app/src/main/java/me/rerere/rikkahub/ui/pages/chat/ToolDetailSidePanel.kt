@@ -56,6 +56,8 @@ import me.rerere.rikkahub.ui.components.ui.overlayMaterial
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
+import me.rerere.rikkahub.ui.theme.fadeEnter
+import me.rerere.rikkahub.ui.theme.fadeExit
 
 /**
  * 横屏时的工具调用详情：从右侧滑入，盖在聊天区与右栏之上。
@@ -94,8 +96,8 @@ internal fun ToolDetailSidePanel(
         AnimatedVisibility(
             visible = visible,
             // 遮罩和面板取同一档曲线与时长：进出场同参，收起不会比展开快一半
-            enter = fadeIn(animationSpec = rememberEffectsSpec()),
-            exit = fadeOut(animationSpec = rememberEffectsSpec()),
+            enter = fadeEnter(),
+            exit = fadeExit(),
             modifier = Modifier.fillMaxSize(),
         ) {
             Box(

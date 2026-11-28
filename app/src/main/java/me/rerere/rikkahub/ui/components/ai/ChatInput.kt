@@ -1,16 +1,8 @@
 package me.rerere.rikkahub.ui.components.ai
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -58,7 +50,6 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 import me.rerere.ai.provider.Model
@@ -106,10 +97,11 @@ import me.rerere.rikkahub.ui.theme.adaptiveShape
 import me.rerere.rikkahub.ui.theme.adaptiveStyledShape
 import me.rerere.rikkahub.ui.theme.appButtonShadow
 import me.rerere.rikkahub.ui.theme.motionContentSize
-import me.rerere.rikkahub.ui.theme.rememberEffectsSpec
 import me.rerere.rikkahub.ui.theme.rememberFixedSpec
-import me.rerere.rikkahub.ui.theme.rememberSlideSpec
-import me.rerere.rikkahub.ui.theme.rememberSpatialSpec
+import me.rerere.rikkahub.ui.theme.rowEnter
+import me.rerere.rikkahub.ui.theme.rowExit
+import me.rerere.rikkahub.ui.theme.swapEnter
+import me.rerere.rikkahub.ui.theme.swapExit
 import me.rerere.rikkahub.utils.SoundEffectPlayer
 import me.rerere.ui.toast.ToastType
 import org.koin.compose.koinInject
@@ -632,21 +624,10 @@ fun ChatInput(
                                 // 内容行（语音 / 附件 / 编辑横幅）的出现与收起：
                                 // 旧的向下滑走、新的从下方滑入，fade+scale 一起收，ImageToolbox 同款曲线，
                                 // 进出同参同档；卡片整体高度由外层 motionContentSize 负责，这里只做行内动效
-                                val rowSlideSpec = rememberSlideSpec<IntOffset>()
-                                val rowScaleSpec = rememberSlideSpec<Float>()
-                                val rowFadeSpec = rememberEffectsSpec<Float>()
-                                val rowEnter: EnterTransition =
-                                    slideInVertically(rowSlideSpec) { it / 2 } +
-                                        fadeIn(rowFadeSpec) +
-                                        scaleIn(rowScaleSpec, initialScale = 0.96f)
-                                val rowExit: ExitTransition =
-                                    slideOutVertically(rowSlideSpec) { it / 2 } +
-                                        fadeOut(rowFadeSpec) +
-                                        scaleOut(rowScaleSpec, targetScale = 0.96f)
                                 AnimatedVisibility(
                                     visible = voiceState.phase != VoicePhase.Off,
-                                    enter = rowEnter,
-                                    exit = rowExit,
+                                    enter = rowEnter(),
+                                    exit = rowExit(),
                                 ) {
                                     Column {
                                         VoiceModeRow(
@@ -661,8 +642,8 @@ fun ChatInput(
                                 }
                                 AnimatedVisibility(
                                     visible = state.messageContent.isNotEmpty(),
-                                    enter = rowEnter,
-                                    exit = rowExit,
+                                    enter = rowEnter(),
+                                    exit = rowExit(),
                                 ) {
                                     MediaFileInputRow(state = state)
                                 }
@@ -672,8 +653,8 @@ fun ChatInput(
                                 // 这里再挂一份就是同一件事显示两遍，所以 native 模式下不显示。
                                 AnimatedVisibility(
                                     visible = state.isEditing() && !useNativeComposer,
-                                    enter = rowEnter,
-                                    exit = rowExit,
+                                    enter = rowEnter(),
+                                    exit = rowExit(),
                                 ) {
                                     EditingBanner(
                                         state = state,
@@ -731,8 +712,8 @@ fun ChatInput(
                                     }
                                     AnimatedVisibility(
                                         visible = !asrState.isRecording,
-                                        enter = fadeIn(rememberEffectsSpec<Float>()) + scaleIn(animationSpec = rememberSpatialSpec<Float>()),
-                                        exit = fadeOut(rememberEffectsSpec<Float>()) + scaleOut(animationSpec = rememberSpatialSpec<Float>()),
+                                        enter = swapEnter(),
+                                        exit = swapExit(),
                                     ) {
                                         SendButton(
                                             loading = loading,

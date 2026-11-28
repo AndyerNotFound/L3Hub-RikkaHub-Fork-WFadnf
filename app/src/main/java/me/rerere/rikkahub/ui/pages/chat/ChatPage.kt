@@ -14,10 +14,8 @@ import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -137,6 +135,10 @@ import me.rerere.rikkahub.ui.modifier.rememberMotionBlurSteps
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.LocalUiSlots
 import me.rerere.rikkahub.ui.theme.rememberSlideSpec
+import me.rerere.rikkahub.ui.theme.revealEnter
+import me.rerere.rikkahub.ui.theme.revealExit
+import me.rerere.rikkahub.ui.theme.nudgeEnter
+import me.rerere.rikkahub.ui.theme.fadeExit
 import me.rerere.rikkahub.utils.base64Decode
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.RikkaConfirmDialog
@@ -1120,10 +1122,9 @@ private fun ChatPageContent(
                 AnimatedVisibility(
                     visible = inputVisible,
                     // 入场：淡入 + 从下方轻推 1/8 高度（不是整块滑入，Tab 切换不该像换页）
-                    enter = fadeIn(animationSpec = rememberEffectsSpec<Float>()) +
-                        slideInVertically(animationSpec = rememberSpatialSpec<IntOffset>()) { it / 8 },
+                    enter = nudgeEnter(),
                     // 退场只淡出：淡出时位置不动，位置一动就成了「收起来」而不是「换掉」
-                    exit = fadeOut(animationSpec = rememberEffectsSpec<Float>()),
+                    exit = fadeExit(),
                 ) {
                 // 输入框常驻在 bottomBar：空会话时只是一层位移把它抬到英雄卡下面，
                 // 发送首条消息时它自己滑下去，列表的底部留白也始终按它的实际高度算。
@@ -1387,14 +1388,8 @@ private fun ChatPageContent(
                         .align(Alignment.TopCenter)
                         .padding(top = innerPadding.calculateTopPadding())
                         .fillMaxWidth(),
-                    enter = expandVertically(
-                        expandFrom = Alignment.Top,
-                        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-                    ) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
-                    exit = shrinkVertically(
-                        shrinkTowards = Alignment.Top,
-                        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-                    ) + fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    enter = revealEnter(expandFrom = Alignment.Top),
+                    exit = revealExit(shrinkTowards = Alignment.Top),
                 ) {
                     ConversationDetailsPanel(
                         assistant = state.assistant,

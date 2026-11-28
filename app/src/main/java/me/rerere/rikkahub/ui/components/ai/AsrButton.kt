@@ -50,7 +50,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.theme.motionAnimationsEnabled
 import me.rerere.rikkahub.ui.theme.motionColorAsState
 import me.rerere.rikkahub.ui.theme.motionContentSize
-import me.rerere.rikkahub.ui.theme.rememberContentTransition
+import me.rerere.rikkahub.ui.theme.contentSwitch
 
 private enum class AsrDisplayState {
     Idle, Connecting, Active
@@ -102,7 +102,7 @@ internal fun AsrButton(
         color = containerColor,
     ) {
         // transitionSpec 不是 @Composable，共用过渡要在组合层先算好
-        val contentTransition = rememberContentTransition()
+        val contentTransition = contentSwitch()
         AnimatedContent(
             targetState = displayState,
             transitionSpec = {

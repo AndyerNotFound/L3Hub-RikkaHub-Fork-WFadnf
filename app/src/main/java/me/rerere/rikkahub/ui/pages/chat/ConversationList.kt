@@ -1,9 +1,6 @@
 package me.rerere.rikkahub.ui.pages.chat
 
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
@@ -42,7 +39,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
@@ -64,6 +60,8 @@ import me.rerere.rikkahub.ui.components.ui.glassColor
 import me.rerere.rikkahub.ui.style.TextButton
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.ui.theme.rememberFixedSpec
+import me.rerere.rikkahub.ui.theme.revealEnter
+import me.rerere.rikkahub.ui.theme.revealExit
 import me.rerere.rikkahub.utils.mirrorForRtl
 import me.rerere.ui.components.AnimatedAlertDialog
 import java.time.LocalDate
@@ -105,13 +103,14 @@ internal fun CollapsibleSectionItem(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    val sizeSpec = rememberFixedSpec<IntSize>(SECTION_TOGGLE_DURATION_MS)
-    val fadeSpec = rememberFixedSpec<Float>(SECTION_TOGGLE_DURATION_MS / 2)
+    // 原来这里用 rememberFixedSpec 锁死 320ms，不跟「动画速度」三档；
+    // 按转场表的约定统一改成 revealEnter / revealExit，节奏交给档位。
+    // 模糊那两条仍按固定时长 —— 模糊有自己的曲线，不跟位移动画共用档位。
     MotionExpandCollapse(
         visible = visible,
         modifier = modifier,
-        enter = expandVertically(animationSpec = sizeSpec) + fadeIn(animationSpec = fadeSpec),
-        exit = shrinkVertically(animationSpec = sizeSpec) + fadeOut(animationSpec = fadeSpec),
+        enter = revealEnter(expandFrom = Alignment.Top),
+        exit = revealExit(shrinkTowards = Alignment.Top),
         enterBlurSpec = rememberFixedSpec<Float>(SECTION_TOGGLE_DURATION_MS),
         exitBlurSpec = rememberFixedSpec<Float>(SECTION_TOGGLE_DURATION_MS),
     ) {
