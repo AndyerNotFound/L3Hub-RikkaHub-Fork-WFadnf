@@ -18,7 +18,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -106,20 +105,16 @@ import me.rerere.rikkahub.data.model.lastContextTokens
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.service.BackgroundShellStatus
 import me.rerere.rikkahub.service.SessionActivity
-import me.rerere.rikkahub.ui.components.ai.BackgroundTasksSheet
 import me.rerere.rikkahub.ui.components.ai.ChatInput
 import me.rerere.rikkahub.ui.components.ai.ChatQuotaStrip
 import me.rerere.rikkahub.ui.components.ai.ChatQuotaStripDashboard
 import me.rerere.rikkahub.ui.components.ai.FullScreenEditor
-import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.completion.WorkspaceCompletionProvider
 import me.rerere.rikkahub.ui.components.ai.rememberChatAttachmentPickerActions
 import me.rerere.rikkahub.ui.components.ai.rememberChatQuotaStripData
 import me.rerere.rikkahub.ui.components.ai.rememberGenerationSpeed
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
-import me.rerere.rikkahub.ui.components.message.ConversationUsageDetails
 import me.rerere.rikkahub.ui.components.message.AskUserPendingSummary
-import me.rerere.rikkahub.ui.components.message.AskUserSheet
 import me.rerere.rikkahub.ui.components.message.parseAskUserQuestions
 import me.rerere.rikkahub.ui.components.message.LocalConversationStatusInSidePanel
 import me.rerere.rikkahub.ui.components.message.tools.LocalToolDetailHost
@@ -142,7 +137,6 @@ import me.rerere.rikkahub.ui.theme.fadeExit
 import me.rerere.rikkahub.utils.base64Decode
 import me.rerere.ui.components.AnimatedAlertDialog
 import me.rerere.ui.components.RikkaConfirmDialog
-import me.rerere.ui.components.AppModalSheet
 import me.rerere.ui.toast.ToastType
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -1504,12 +1498,44 @@ private fun ChatPageContent(
             )
         }
 
-        // 竖屏的后台任务弹层；横屏那份由上面的右侧栏接管
-        BackgroundTasksSheet(
-            visible = showBackgroundTasks && !state.threePane,
-            tasks = backgroundTasks,
-            onStop = state.vm::stopBackgroundTask,
-            onDismiss = { showBackgroundTasks = false },
+        // 选择菜单浮层：后台任务、用量、任务树、附件、终端、模型、ask_user
+        ChatSelectionLayers(
+            state = state,
+            sheets = ChatSelectionSheetState(
+                backgroundTasks = showBackgroundTasks,
+                usage = showUsageSheet,
+                taskTree = showTaskTree,
+                files = showFilesSheet,
+                terminalPicker = showTerminalPicker,
+            ),
+            callbacks = ChatSelectionCallbacks(
+                backgroundTasks = backgroundTasks,
+                onStopBackgroundTask = state.vm::stopBackgroundTask,
+                onDismissBackgroundTasks = { showBackgroundTasks = false },
+                onDismissUsage = { showUsageSheet = false },
+                onDismissTaskTree = { showTaskTree = false },
+                onOpenSubAgentConversation = { id ->
+                    showTaskTree = false
+                    state.vm.switchConversation(id)
+                },
+                attachmentPickerActions = attachmentPickerActions,
+                onStartVoiceMode = actions.onStartVoiceMode,
+                onDismissFiles = { showFilesSheet = false },
+                terminalWorkspaces = floatingBarTerminalWorkspaces,
+                onSelectTerminalWorkspace = { workspaceId ->
+                    showTerminalPicker = false
+                    state.navController.navigate(Screen.WorkspaceTerminal(workspaceId))
+                },
+                onDismissTerminalPicker = { showTerminalPicker = false },
+                chatModelListState = chatModelListState,
+                onSelectModel = state.vm::setChatModel,
+                askUserTool = askUserSheetTool,
+                onDismissAskUser = { askUserSheetCallId = null },
+                onSubmitAskUser = { toolCallId, answer ->
+                    askUserSheetCallId = null
+                    state.vm.handleToolAnswer(toolCallId, answer)
+                },
+            ),
         )
 
         if (showCompressAndSendDialog) {
@@ -1534,38 +1560,6 @@ private fun ChatPageContent(
                 },
             )
         }
-
-        AppModalSheet(
-            visible = showUsageSheet && !state.threePane,
-            onDismissRequest = { showUsageSheet = false },
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.chat_message_usage_title),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                ConversationUsageDetails(
-                    messages = state.conversationState.value.currentMessages,
-                    contextLength = state.currentChatModel?.effectiveContextWindow,
-                )
-            }
-        }
-
-        SubAgentTaskSheet(
-            visible = showTaskTree && !state.threePane,
-            conversationId = state.conversationId,
-            onDismiss = { showTaskTree = false },
-            onOpenConversation = { id ->
-                showTaskTree = false
-                state.vm.switchConversation(id)
-            },
-        )
 
         if (showCreateFolderDialog) {
             CreateChatFolderDialog(
@@ -1599,46 +1593,6 @@ private fun ChatPageContent(
             text = { Text(stringResource(R.string.chat_page_delete_conversation_confirm)) },
         )
 
-        ChatFilesPickerSheet(
-            visible = showFilesSheet && !state.threePane,
-            inputState = state.inputState,
-            setting = state.setting,
-            conversationState = state.conversationState,
-            folderWorkspaceName = state.folderWorkspaceName,
-            assistant = state.assistant,
-            chatModel = state.currentChatModel,
-            vm = state.vm,
-            attachmentPickerActions = attachmentPickerActions,
-            onStartVoiceMode = actions.onStartVoiceMode,
-            onDismiss = { showFilesSheet = false },
-        )
-
-        TerminalWorkspacePickerSheet(
-            visible = showTerminalPicker && !state.threePane,
-            workspaces = floatingBarTerminalWorkspaces,
-            onSelect = { workspaceId ->
-                showTerminalPicker = false
-                state.navController.navigate(Screen.WorkspaceTerminal(workspaceId))
-            },
-            onDismiss = { showTerminalPicker = false },
-        )
-
-        // 横屏用右侧栏里的那份，这里只在竖屏组合
-        if (!state.threePane) {
-            ModelListSheet(state = chatModelListState) { model ->
-                state.vm.setChatModel(model)
-            }
-        }
-
-        // ask_user 问答抽屉：作答与任务清单提示的入口都汇到这里
-        AskUserSheet(
-            tool = askUserSheetTool,
-            onDismissRequest = { askUserSheetCallId = null },
-            onSubmit = { toolCallId, answer ->
-                askUserSheetCallId = null
-                state.vm.handleToolAnswer(toolCallId, answer)
-            },
-        )
     }
 }
 
