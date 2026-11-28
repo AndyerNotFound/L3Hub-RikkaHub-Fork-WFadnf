@@ -279,6 +279,9 @@ fun ChatInput(
     // 输入框是否拿着输入法焦点。只驱动一件事：键盘弹起时把悬浮菜单收起来，
     // 把键盘上方那一条留给内容；焦点离开再放出来。
     var inputFocused by remember { mutableStateOf(false) }
+    // 快捷菜单开没开。只用来让 Compose 侧知道（比如以后要联动画布遮罩），
+    // 真正的展开动作在 Java 侧，这里不回推。
+    var floatingMenuExpanded by remember { mutableStateOf(false) }
 
     // 悬浮菜单：开关打开且至少配了一个槽位才出现。
     //
@@ -560,12 +563,15 @@ fun ChatInput(
                         if (floatingBarEnabled) {
                             // 菜单本体是 Java（NativeFloatingMenu），容器变换用
                             // MaterialContainerTransform；图标仍由 Compose 渲染。
-                            // 键盘弹起时藏起来，把上方那一条留给内容。
+                            //
+                            // 展开状态由 Java 侧自己维护（点按钮、点槽位、按返回都在那边），
+                            // 这里只收一个通知：不反向下发，免得两边各推一次打架。
                             NativeFloatingMenuHost(
                                 items = floatingBarItems,
                                 scale = settings.displaySetting.floatingBarScale,
-                                expanded = false,
-                                onExpandedChange = {},
+                                visible = !inputFocused,
+                                expanded = floatingMenuExpanded,
+                                onExpandedChange = { floatingMenuExpanded = it },
                                 onItemClick = onFloatingBarItemClick,
                             )
                         }

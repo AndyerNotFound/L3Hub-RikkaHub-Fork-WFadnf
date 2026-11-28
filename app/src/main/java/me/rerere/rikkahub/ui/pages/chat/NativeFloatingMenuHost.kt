@@ -18,6 +18,7 @@ import me.rerere.rikkahub.ui.components.ai.FloatingBarSizing
 import me.rerere.rikkahub.ui.components.ai.icon
 import me.rerere.rikkahub.ui.components.ai.label
 import me.rerere.rikkahub.ui.theme.LocalAnimationsEnabled
+import me.rerere.rikkahub.ui.theme.slideDurationMillis
 import me.rerere.rikkahub.ui.views.chat.NativeFloatingMenu
 import me.rerere.rikkahub.ui.views.chat.rememberNativeChatContext
 
@@ -31,6 +32,7 @@ import me.rerere.rikkahub.ui.views.chat.rememberNativeChatContext
  * 这不影响容器变换：`MaterialContainerTransform` 是对整块 View 截图后缩放，
  * 里面嵌的是 ComposeView 还是普通 View 都一样。
  *
+ * @param visible 键盘弹起时传 false：收起并把上方那一条留给内容
  * @param expanded 由页面持有 —— 菜单展开时宿主需要知道（比如收起输入卡的其他浮层）
  * @param onExpandedChange 展开 / 收起时回调
  */
@@ -38,6 +40,7 @@ import me.rerere.rikkahub.ui.views.chat.rememberNativeChatContext
 internal fun NativeFloatingMenuHost(
     items: List<FloatingBarItem>,
     scale: Float,
+    visible: Boolean,
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     onItemClick: (FloatingBarItem) -> Unit,
@@ -48,6 +51,8 @@ internal fun NativeFloatingMenuHost(
     val context = rememberNativeChatContext()
     val animationsEnabled = LocalAnimationsEnabled.current
     val iconExtent = FloatingBarSizing.iconExtent(scale)
+    // 档位在组合层读，Java 侧读不到 motionScheme。容器变换与淡入淡出共用这一档。
+    val durationMillis = slideDurationMillis()
 
     // 回调每帧都是新闭包，但装在 View 上的 listener 只建一次 —— 通过这个读最新那份
     val latest = rememberUpdatedState(
@@ -96,11 +101,13 @@ internal fun NativeFloatingMenuHost(
         onRelease = { menu -> menu.setListener(null) },
         update = { menu ->
             menu.setAnimationsEnabled(animationsEnabled)
+            menu.setTransformDuration(durationMillis)
             menu.setListener(listener)
             menu.setIconBinder(iconBinder)
             menu.setSlotCount(items.size)
             // 页面可能从别处把它收起来（比如键盘弹起），这里对齐一次
             if (menu.isExpanded != expanded) menu.setExpanded(expanded, true)
+            menu.setVisible(visible)
         },
     )
 }

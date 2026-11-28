@@ -79,6 +79,8 @@ public final class NativeFloatingMenu extends FrameLayout {
     private int slotCount;
     private boolean expanded;
     private boolean animationsEffective = true;
+    private int transformDurationMillis = 300;
+    private boolean visible = true;
 
     public NativeFloatingMenu(@NonNull Context context) {
         this(context, null);
@@ -129,7 +131,7 @@ public final class NativeFloatingMenu extends FrameLayout {
         if (!animate || !animationsEffective) {
             button.setVisibility(expand ? View.INVISIBLE : View.VISIBLE);
             panel.setVisibility(expand ? View.VISIBLE : View.INVISIBLE);
-            if (listener != null) listener.onExpandChange(expand);
+            notifyExpanded(expand);
             return;
         }
 
@@ -148,6 +150,11 @@ public final class NativeFloatingMenu extends FrameLayout {
         button.setVisibility(expand ? View.INVISIBLE : View.VISIBLE);
         panel.setVisibility(expand ? View.VISIBLE : View.INVISIBLE);
 
+        notifyExpanded(expand);
+    }
+
+    /** 展开状态变了就通知一次。收起态被强制拉回时也要走这里。 */
+    private void notifyExpanded(boolean expand) {
         if (listener != null) listener.onExpandChange(expand);
     }
 
@@ -160,6 +167,56 @@ public final class NativeFloatingMenu extends FrameLayout {
         animationsEffective = enabled;
     }
 
+    /**
+     * 容器变换的时长（毫秒）。
+     *
+     * <p>由桥接层从 Compose 的「动画速度」档位读出来传进来 —— 这个 View 读不到
+     * {@code MaterialTheme.motionScheme}，只能被喂。
+     */
+    public void setTransformDuration(int millis) {
+        transformDurationMillis = Math.max(1, millis);
+    }
+
+    /**
+     * 整块显隐。键盘弹起时收起，把上方那一条留给内容。
+     *
+     * <p>用 alpha 而不是直接 GONE：淡出期间仍占位，布局不会跳一下。
+     * 收起来的时候连展开态一起收，下次露出来是收起态。
+     */
+    public void setVisible(boolean show) {
+        if (visible == show) return;
+        visible = show;
+        if (!show && expanded) {
+            // 收起时也要通知：不通知的话 Compose 侧会一直以为菜单还开着，
+            // 下次 visible 变 true 时 update 会把它又展开一遍
+            setExpanded(false, false);
+            notifyExpanded(false);
+        }
+        animate().cancel();
+        if (!animationsEffective) {
+            setAlpha(show ? 1f : 0f);
+            setVisibility(show ? VISIBLE : GONE);
+            return;
+        }
+        if (show) {
+            setVisibility(VISIBLE);
+            animate().alpha(1f).setDuration(fadeDurationMillis()).start();
+        } else {
+            animate()
+                    .alpha(0f)
+                    .setDuration(fadeDurationMillis())
+                    .withEndAction(() -> {
+                        // 淡出期间可能又被叫回来
+                        if (!visible) setVisibility(GONE);
+                    })
+                    .start();
+        }
+    }
+
+    public boolean isVisible() {
+        return visible;
+    }
+
     /** 展开时要不要让宿主给菜单腾位置。收起态不占流式高度。 */
     public int getPanelHeight() {
         return panel.getVisibility() == View.VISIBLE ? panel.getHeight() : 0;
@@ -168,10 +225,12 @@ public final class NativeFloatingMenu extends FrameLayout {
     // region 内部
 
     private int transformDuration() {
-        // 与 Compose 侧 motionScheme 的 defaultSpatialSpec 同档；
-        // 这里读不到 Compose 的档位，桥接层会通过 setAnimationsEnabled 把开关传进来，
-        // 时长本身取 M3 的 300ms 基准
-        return 300;
+        return transformDurationMillis;
+    }
+
+    /** 淡入淡出比容器变换短一档：它只是「这一层在不在」，不该占满整段。 */
+    private int fadeDurationMillis() {
+        return Math.max(1, transformDurationMillis * 2 / 3);
     }
 
     private void rebuildSlots() {
