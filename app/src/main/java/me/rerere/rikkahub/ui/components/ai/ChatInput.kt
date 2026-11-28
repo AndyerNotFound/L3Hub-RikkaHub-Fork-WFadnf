@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -471,26 +472,20 @@ fun ChatInput(
     } else {
         Modifier
     }
-    // 焦点态的底板：卡片要「贴住键盘」而不是浮在一条缝隙上，
-    // 所以底色从透明渐显到实色，顶部那条细线同时淡出（贴键盘的 sheet 没有上边界）。
-    //
-    // 贴底常态（docked）本来就是实色平板，底色不变；它的焦点态变化在下面那层——
-    // 卡片左右收窄到贴边、圆角长出来、顶部细线淡出，三者一起构成「变形成 sheet」。
+    // 整条底栏的外壳：贴底态铺实色底板 + 顶部分隔线。
+    // 焦点变形不在这里做——这条线是底栏与消息列表的边界，跟着输入框焦点消失
+    // 会让待办卡、消息队列一起失去边界。变形全部落在下面输入卡那一列。
     Surface(
         color = if (docked) containerColor else Color.Transparent,
         modifier = scrimModifier.then(
             if (docked) Modifier.drawWithContent {
                 drawContent()
-                // 顶部细线随焦点淡出：变形成 sheet 之后它不是一张浮起的卡片
-                val lineAlpha = dividerColor.alpha * (1f - focusProgress)
-                if (lineAlpha > 0.01f) {
-                    drawLine(
-                        color = dividerColor.copy(alpha = lineAlpha),
-                        start = Offset(0f, 0.5.dp.toPx()),
-                        end = Offset(size.width, 0.5.dp.toPx()),
-                        strokeWidth = 1.dp.toPx(),
-                    )
-                }
+                drawLine(
+                    color = dividerColor,
+                    start = Offset(0f, 0.5.dp.toPx()),
+                    end = Offset(size.width, 0.5.dp.toPx()),
+                    strokeWidth = 1.dp.toPx(),
+                )
             } else Modifier,
         ),
     ) {
@@ -508,15 +503,10 @@ fun ChatInput(
                     },
                 )
                 // 底板铺满宽度，文字与工具栏保留 demo 的 12dp 内缩及系统 inset。
-                // 焦点态时左右内缩连续收窄到贴边：卡片横向长成整条 sheet，
-                // 这是「悬浮卡片 → bottom sheet」变形里最容易被看见的一段。
-                .adaptiveHorizontalPadding(lerp(12.dp, 0.dp, focusProgress))
-                .padding(
-                    top = lerp(if (docked) 8.dp else 0.dp, 6.dp, focusProgress),
-                    // 焦点态贴住键盘：抬升量（空态把输入区托到屏幕中间的那一段）
-                    // 必须归零，否则卡片会被顶到键盘上方悬着，不像 sheet
-                    bottom = lerp(8.dp + liftedBy, 0.dp, focusProgress),
-                )
+                // 这一层管的是整条底栏（待办卡、消息队列、上下文条、输入卡），
+                // 内缩必须是常量：焦点变形只属于输入卡，在下面那一列里做。
+                .adaptiveHorizontalPadding(12.dp)
+                .padding(top = if (docked) 8.dp else 0.dp, bottom = 8.dp + liftedBy)
                 // 内容贴底对齐：输入框向上长高时按钮的屏幕位置不动。
                 // 空会话里输入区是顶部钉住、向下生长的，槽位已经是定值，容器高度不该再跟着
                 // 每一次测量走一段动画：animateContentSize 会把槽位里 1px 的抖动抹成一段
@@ -641,8 +631,29 @@ fun ChatInput(
                             },
                         ),
                 ) {
+                    // 输入卡这一列单独做焦点变形：非焦点态和原来一样（外层已经给了 12dp
+                    // 内缩），焦点态往左右各外扩 12dp 把整条宽度吃满——卡片长成贴住
+                    // 屏幕两侧的 sheet。
+                    //
+                    // 不能改外层那层内缩：它还管着待办卡、消息队列、上下文条，
+                    // 动它会把上面那几张卡一起拉宽。也不能用负 padding——Compose 的
+                    // padding 会 constrainWidth 夹回父宽度，负值不会外扩。
+                    // 这里在测量阶段放宽约束、放置阶段左移，父容器不裁剪所以能画出来。
+                    // 注意不能叠 fillMaxWidth：它按原约束把宽度钉死，后面的放宽就没用了。
+                    val focusSpreadPx = with(density) { (12.dp * focusProgress).roundToPx() }
                     Column(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .layout { measurable, constraints ->
+                                val placeable = measurable.measure(
+                                    constraints.copy(
+                                        minWidth = constraints.maxWidth,
+                                        maxWidth = constraints.maxWidth + focusSpreadPx * 2,
+                                    )
+                                )
+                                layout(constraints.maxWidth, placeable.height) {
+                                    placeable.placeRelative(-focusSpreadPx, 0)
+                                }
+                            },
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Surface(
