@@ -179,7 +179,7 @@ internal fun rememberNativeSelectMenu(
         if (expanded) {
             menu.clearItems()
             latestContent.value.invoke(menu)
-            menu.show(anchorBounds)
+            menu.show(anchorBounds, hostView)
         } else {
             menu.dismiss()
         }

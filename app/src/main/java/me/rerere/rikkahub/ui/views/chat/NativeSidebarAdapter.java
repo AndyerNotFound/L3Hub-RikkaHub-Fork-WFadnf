@@ -262,7 +262,7 @@ public final class NativeSidebarAdapter
                 if (row.pinned) {
                     pin.setVisibility(View.VISIBLE);
                     bindIconInto(pin, ICON_PIN, colorAttr(
-                            com.google.android.material.R.attr.colorPrimary));
+                            androidx.appcompat.R.attr.colorPrimary));
                 } else {
                     pin.setVisibility(View.GONE);
                     pin.removeAllViews();
@@ -352,7 +352,7 @@ public final class NativeSidebarAdapter
 
             if (row.checked) {
                 circle.setBackground(circleBackground(
-                        colorAttr(com.google.android.material.R.attr.colorPrimary)));
+                        colorAttr(androidx.appcompat.R.attr.colorPrimary)));
                 bindIconInto(circle, ICON_CHECK, colorAttr(
                         com.google.android.material.R.attr.colorOnPrimary));
             } else {
@@ -401,7 +401,7 @@ public final class NativeSidebarAdapter
                         || row.kind == SidebarRow.Kind.PINNED_HEADER) {
                     sectionIcon.setVisibility(View.VISIBLE);
                     bindIconInto(sectionIcon, ICON_FOLDER, colorAttr(
-                            com.google.android.material.R.attr.colorPrimary));
+                            androidx.appcompat.R.attr.colorPrimary));
                 } else {
                     sectionIcon.setVisibility(View.GONE);
                     sectionIcon.removeAllViews();
@@ -414,7 +414,7 @@ public final class NativeSidebarAdapter
                     bindIconInto(
                             sectionChevron,
                             row.collapsed ? ICON_CHEVRON_DOWN : ICON_CHEVRON_UP,
-                            colorAttr(com.google.android.material.R.attr.colorPrimary));
+                            colorAttr(androidx.appcompat.R.attr.colorPrimary));
                 } else {
                     sectionChevron.setVisibility(View.GONE);
                     sectionChevron.removeAllViews();

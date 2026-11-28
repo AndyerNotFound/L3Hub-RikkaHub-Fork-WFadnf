@@ -372,7 +372,7 @@ public final class NativeSidebar extends LinearLayout {
         delete.setText(getContext().getString(R.string.chat_page_delete));
         delete.setTextAppearance(
                 com.google.android.material.R.style.TextAppearance_Material3_LabelLarge);
-        delete.setTextColor(colorAttr(com.google.android.material.R.attr.colorError));
+        delete.setTextColor(colorAttr(androidx.appcompat.R.attr.colorError));
         delete.setPadding(dp(12), dp(6), dp(12), dp(6));
         delete.setOnClickListener(v -> {
             if (listener == null) return;
@@ -593,9 +593,11 @@ public final class NativeSidebar extends LinearLayout {
     private void addChip(@Nullable String folderId, @NonNull String label, boolean withIcon) {
         if (folderChips == null) return;
 
-        TextView chip = (TextView) LayoutInflater.from(getContext())
+        // 根是 LinearLayout：图标位要能装 ComposeView，TextView 装不了子 View
+        View chip = LayoutInflater.from(getContext())
                 .inflate(R.layout.l3_native_sidebar_folder_chip, folderChips, false);
-        chip.setText(label);
+        TextView chipText = chip.findViewById(R.id.l3_native_chip_text);
+        chipText.setText(label);
         // 重建文件夹条时靠这个 tag 取回 id
         chip.setTag(folderId);
 
@@ -614,9 +616,13 @@ public final class NativeSidebar extends LinearLayout {
                 : com.google.android.material.R.attr.colorSurfaceContainerLow));
         chip.setBackground(bg);
 
+        ViewGroup chipIcon = chip.findViewById(R.id.l3_native_chip_icon);
         if (withIcon) {
-            bindIconNow(chip, ICON_FOLDER, colorAttr(
+            chipIcon.setVisibility(View.VISIBLE);
+            bindIconNow(chipIcon, ICON_FOLDER, colorAttr(
                     com.google.android.material.R.attr.colorOnSurface));
+        } else {
+            chipIcon.setVisibility(View.GONE);
         }
 
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(

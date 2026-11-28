@@ -180,8 +180,7 @@ public final class NativeSelectMenu {
         this.listener = listener;
     }
 
-    public void setIconBinder(@Nullable IconBinder binder) {
-        this.iconBinder = binder;
+    public void setIconBinder(@Nullable IconBinder binder) {        this.iconBinder = binder;
     }
 
     /** 系统关掉动画时直接切。 */
@@ -319,6 +318,16 @@ public final class NativeSelectMenu {
      * android View（它是 Compose 节点）。能拿到的是它的窗口矩形。
      */
     public void show(@Nullable Rect anchorBounds) {
+        show(anchorBounds, null);
+    }
+
+    /**
+     * 以 {@code anchorBounds} 为起点展开，并用 {@code windowAnchor} 取窗口 token。
+     *
+     * <p>{@code windowAnchor} 必须是一个已经 attach 到窗口的 View —— 弹层内容自己还没挂上，
+     * 拿不到 token。Compose 侧传 {@code LocalView} 即可。
+     */
+    public void show(@Nullable Rect anchorBounds, @Nullable View windowAnchor) {
         if (isShowing()) return;
         if (items.isEmpty()) return;
         this.anchorBounds = anchorBounds;
@@ -345,7 +354,10 @@ public final class NativeSelectMenu {
         popup.setAnimationStyle(0);
         popup.setOnDismissListener(this::onDismissed);
 
-        popup.showAtLocation(anchor.getRootView(), Gravity.TOP | Gravity.START, 0, 0);
+        // 有真实锚点时按它定位；没有就退回占位 View（此时多半会因为没有 token 而失败，
+        // 但保留了「有人已经把它挂上去」的情形）
+        View tokenSource = windowAnchor != null ? windowAnchor : anchorPlaceholder;
+        popup.showAtLocation(tokenSource.getRootView(), Gravity.TOP | Gravity.START, 0, 0);
 
         // 布局落定后再算菜单位置与容器变换：此时才知道菜单卡的实际高度
         content.post(() -> {
@@ -716,13 +728,13 @@ public final class NativeSelectMenu {
                 }
 
                 int iconTint = colorAttr(item.destructive
-                        ? com.google.android.material.R.attr.colorError
+                        ? androidx.appcompat.R.attr.colorError
                         : com.google.android.material.R.attr.colorOnSurfaceVariant);
 
                 if (item.destructive) {
                     // 危险色：文字与图标走 error，删除这类不可逆操作用
                     text.setTextColor(colorAttr(
-                            com.google.android.material.R.attr.colorError));
+                            androidx.appcompat.R.attr.colorError));
                 }
 
                 if (iconBinder != null && iconBinder.hasIcon(item.entryIndex)) {

@@ -1,18 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   文件夹条上的一颗胶囊。选中时底色换成 secondaryContainer，与原版 FolderChip 一致。
+
+  根是 LinearLayout 而不是 TextView：图标由 Compose 画（HugeIcons 的 pathData 在 Java
+  侧取不到），需要一个能装子 View 的容器当图标位，TextView 装不了。
 -->
-<TextView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/l3_native_chip_text"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/l3_native_chip"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:background="@drawable/l3_native_sidebar_chip_bg"
     android:clickable="true"
     android:focusable="true"
-    android:drawablePadding="4dp"
-    android:ellipsize="end"
-    android:maxLines="1"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
     android:paddingHorizontal="12dp"
-    android:paddingVertical="6dp"
-    android:textAppearance="?attr/textAppearanceLabelLarge"
-    android:textColor="?attr/colorOnSurface" />
+    android:paddingVertical="6dp">
+
+    <FrameLayout
+        android:id="@+id/l3_native_chip_icon"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:layout_marginEnd="4dp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/l3_native_chip_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textAppearance="?attr/textAppearanceLabelLarge"
+        android:textColor="?attr/colorOnSurface" />
+
+</LinearLayout>
